@@ -1,2 +1,2 @@
 # HEVA
-Half Edge data-structure for Virus Assembly
+**H**alf **E**dge data-structure for **V**irus **A**ssembly
