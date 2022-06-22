@@ -36,7 +36,7 @@
 *                                                                           
 */
 
-#include "tri_tri_intersect.hpp"
+#include "tri_tri_intersect.h"
 
 
 

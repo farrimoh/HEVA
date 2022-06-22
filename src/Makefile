@@ -1,20 +1,18 @@
 CC = g++
 DEBUG = #-g 
-GSLINC=-I/include`
+GSLINC=-I/include
 GSL=-L/lib
 CFLAGS = -Wall $(DEBUG) -O3 -ffast-math -funroll-loops
 LFLAGS = -Wall $(DEBUG) $(GSL) -lgsl -lgslcblas -lm
 
 
-assembly:  tri_tri_intersect.cpp tri_tri_intersect.hpp geometry.cpp geometry.hpp montecarlo.cpp montecarlo.hpp run_assembly.cpp
+drug:  tri_tri_intersect.cpp tri_tri_intersect.h geometry.cpp geometry.h montecarlo.cpp montecarlo.h run_assembly_drug.cpp
 	
 	$(CC) $(CFLAGS) -c tri_tri_intersect.cpp
 	$(CC) $(CFLAGS) -c geometry.cpp
 	$(CC) $(CFLAGS) -c montecarlo.cpp
 	$(CC) $(CFLAGS) -c run_assembly.cpp
-	$(CC) $(CFLAGS) tri_tri_intersect.o geometry.o montecarlo.o run_assembly.o -o assemble $(LFLAGS)
-
-
+	$(CC) $(CFLAGS) tri_tri_intersect.o geometry.o montecarlo.o run_assembly.o -o drug $(LFLAGS)
 
 clean:
 	rm -fr *.o
