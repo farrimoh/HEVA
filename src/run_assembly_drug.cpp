@@ -1,5 +1,5 @@
-#include "geometry.h"
-#include "montecarlo.h"
+#include "geometry.hpp"
+#include "montecarlo.hpp"
 #include <iostream>
 #include <vector>
 #include <gsl/gsl_rng.h>

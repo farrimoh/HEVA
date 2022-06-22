@@ -5,8 +5,8 @@
  *      Author: farr6
  */
 
-#include "geometry.h"
-#include "tri_tri_intersect.h"
+#include "geometry.hpp"
+#include "tri_tri_intersect.hpp"
 #include <iostream>
 #include <vector>
 #include <math.h>

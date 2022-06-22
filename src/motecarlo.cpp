@@ -4,8 +4,8 @@
  *  Created on: May 3, 2019
  *      Author: farri
  */
-#include "geometry.h"
-#include "montecarlo.h"
+#include "geometry.hpp"
+#include "montecarlo.hpp"
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <iostream>
