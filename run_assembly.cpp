@@ -1,5 +1,5 @@
-#include "Geometry.hpp"
-#include "MonteCarlo-types.hpp"
+#include "geometry.hpp"
+#include "montecarlo.hpp"
 #include <iostream>
 #include <vector>
 #include <gsl/gsl_rng.h>
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
     gsl_rng_set(r, seed);
     cout << "HERE " << endl;
     //const double pi = 4*atan(1);
-    Geometry g;
+    geometry g;
     g.initialize(4);
     g.all_neigh = 0;
 

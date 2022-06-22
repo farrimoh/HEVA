@@ -1,12 +1,12 @@
 /*
- * Geometry.h
+ * geometry.h
  *
  *  Created on: Apr 25, 2019
  *      Author: farri
  */
 
-#ifndef GEOMETRY_H_
-#define GEOMETRY_H_
+#ifndef geometry_H_
+#define geometry_H_
 #include "tri_tri_intersect.hpp"
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
@@ -61,7 +61,7 @@ struct VTX
 typedef struct HE HE;
 typedef struct VTX VTX;
 
-class Geometry
+class geometry
 {
 public:
 	bool Test_assembly; // for trial runs =1
@@ -133,8 +133,8 @@ public:
 	vector<int> fusionhe;
 	vector<int> fusionwedgehe;
 
-	Geometry();
-	~Geometry();
+	geometry();
+	~geometry();
 
 	void initialize(int Ntyp0);
 
@@ -322,7 +322,7 @@ public:
 	void set_prev_next_boundary(int previd0, int nextid0);
 };
 
-void read_points(Geometry &g);
+void read_points(geometry &g);
 
 void subvec(double *vinit, double *vfin, double *vec);
 
@@ -342,54 +342,54 @@ void cross(double *v1, double *v2, double *res);
 
 void randvec(double *v, gsl_rng *r);
 
-void dump_lammps_traj(Geometry &g, int time0);
+void dump_lammps_traj(geometry &g, int time0);
 
-void dump_lammps_traj_dimers(Geometry &g, int time0);
+void dump_lammps_traj_dimers(geometry &g, int time0);
 
-void dump_lammps_traj_restart(Geometry &g, int time0);
+void dump_lammps_traj_restart(geometry &g, int time0);
 
-void dump_lammps_data_file(Geometry &g, int time0);
+void dump_lammps_data_file(geometry &g, int time0);
 
-void dump_lammps_data_dimers(Geometry &g, int time0);
+void dump_lammps_data_dimers(geometry &g, int time0);
 
-void move_vertex(Geometry &g, gsl_rng *r);
+void move_vertex(geometry &g, gsl_rng *r);
 
 void rotatevec(double *vec, double *axis, double angle, double *vec2);
 
-void read_lammps_data(Geometry &g, char filename[]);
+void read_lammps_data(geometry &g, char filename[]);
 
-int read_restart_lammps_data_file(Geometry &g, char filename[]);
+int read_restart_lammps_data_file(geometry &g, char filename[]);
 
-int read_restart_lammps_data_traj(Geometry &g, FILE *trajfile, int step);
+int read_restart_lammps_data_traj(geometry &g, FILE *trajfile, int step);
 
-void dump_restart_lammps_data_file(Geometry &g, int time0);
+void dump_restart_lammps_data_file(geometry &g, int time0);
 
-void dump_data_frame(Geometry &g, FILE *f, int time);
+void dump_data_frame(geometry &g, FILE *f, int time);
 
-void update_geometry_parameters(Geometry &g);
+void update_geometry_parameters(geometry &g);
 
-void recenter(Geometry &g);
+void recenter(geometry &g);
 
-int surfclosev(Geometry &g);
+int surfclosev(geometry &g);
 
-void make_initial_triangle(Geometry &g);
+void make_initial_triangle(geometry &g);
 
-void make_initial_pentamer(Geometry &g);
+void make_initial_pentamer(geometry &g);
 
-int check_bind_triangle(Geometry &g);
+int check_bind_triangle(geometry &g);
 
-void dump_analysis(Geometry &g, FILE *ofile, int sweep, int seed, int seconds);
+void dump_analysis(geometry &g, FILE *ofile, int sweep, int seed, int seconds);
 
-//int valid(Geometry &g);
+//int valid(geometry &g);
 
-//int add_dimer(Geometry &g,int hei);
+//int add_dimer(geometry &g,int hei);
 
-//void add_edge_type(Geometry &g,VTX *vin0,VTX *vout0, int etype);
+//void add_edge_type(geometry &g,VTX *vin0,VTX *vout0, int etype);
 
-//void make_hexamer(Geometry &g);
+//void make_hexamer(geometry &g);
 
-//void add_vertex(Geometry &g, double *xyz);
+//void add_vertex(geometry &g, double *xyz);
 
-//void make_triangle(Geometry &g);
-//int get_vindex(Geometry &g, int vid0 ) ;
-#endif /* GEOMETRY_H_ */
+//void make_triangle(geometry &g);
+//int get_vindex(geometry &g, int vid0 ) ;
+#endif /* geometry_H_ */

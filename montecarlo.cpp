@@ -4,8 +4,8 @@
     *  Created on: May 3, 2019
     *      Author: farri
     */
-#include "Geometry.hpp"
-#include "MonteCarlo-types.hpp"
+#include "geometry.hpp"
+#include "montecarlo.hpp"
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #include <iostream>
@@ -16,7 +16,7 @@ using namespace std;
 const double Pi  =3.141592653589793238463;
 
 
-void move_vertex(Geometry &g, gsl_rng *r)
+void move_vertex(geometry &g, gsl_rng *r)
 {
     //std::cout << "inin move_vertex"<<endl;
     double *newv = new double[3];
@@ -156,7 +156,7 @@ void move_vertex(Geometry &g, gsl_rng *r)
 }
 
 
-int move_one_vertex(Geometry &g, int vid0, gsl_rng *r)
+int move_one_vertex(geometry &g, int vid0, gsl_rng *r)
 {
     //std::cout << "inin move_vertex"<<endl;
     double *newv = new double[3];
@@ -243,7 +243,7 @@ int move_one_vertex(Geometry &g, int vid0, gsl_rng *r)
 }
 
 
-int attempt_add_monomer_dimer(Geometry &g, int heid0, gsl_rng *r) //!!! Should update with pre_oipen wedge
+int attempt_add_monomer_dimer(geometry &g, int heid0, gsl_rng *r) //!!! Should update with pre_oipen wedge
 {
     //std::cout << "in attempt_add_monomer-dimer" <<endl;
     g.update_normals();
@@ -1033,7 +1033,7 @@ int attempt_add_monomer_dimer(Geometry &g, int heid0, gsl_rng *r) //!!! Should u
     return -1;
 }
 
-int attempt_remove_monomer_dimer(Geometry &g, int heid0, gsl_rng *r) /* 102220 THIS NEEDS UPDATE -> MOVE GEOMETRY TO geometry! */
+int attempt_remove_monomer_dimer(geometry &g, int heid0, gsl_rng *r) /* 102220 THIS NEEDS UPDATE -> MOVE geometry TO geometry! */
 {
     //std::cout << "in attempt_remove_monomer_dimer" << endl;
     //std::cout << "Nd is " <<g.Nd <<endl;
@@ -1456,7 +1456,7 @@ int attempt_remove_monomer_dimer(Geometry &g, int heid0, gsl_rng *r) /* 102220 T
     return -1;
 }
 
-int attempt_wedge_fusion(Geometry &g, gsl_rng *r)
+int attempt_wedge_fusion(geometry &g, gsl_rng *r)
 {
     //ToDo : update it to read pairs from a vector of pairs
     //std::cout << "in attempt wedge Fusion  " << endl;
@@ -1566,7 +1566,7 @@ int attempt_wedge_fusion(Geometry &g, gsl_rng *r)
     }
     if (heidm == -1)
     {
-        std::cout << "WRONG Geometry in wedge fusion" << endl;
+        std::cout << "WRONG geometry in wedge fusion" << endl;
         std::exit(-1);
     }
     // now save th status
@@ -1889,7 +1889,7 @@ int attempt_wedge_fusion(Geometry &g, gsl_rng *r)
     return -1;
 }
 
-int attempt_wedge_fission(Geometry &g, gsl_rng *r)
+int attempt_wedge_fission(geometry &g, gsl_rng *r)
 {
     //std::cout << "in attempt wedge fission  " << endl;
     int vid0 = -1;
@@ -2325,7 +2325,7 @@ int attempt_wedge_fission(Geometry &g, gsl_rng *r)
 }
 
 
-int attempt_change_edge_type_tri(Geometry &g, int heid0, gsl_rng *r)
+int attempt_change_edge_type_tri(geometry &g, int heid0, gsl_rng *r)
 {
     //std::cout << "inin attempt change type"<<endl;
     if (g.Nhe!=6) {
@@ -2505,7 +2505,7 @@ int attempt_change_edge_type_tri(Geometry &g, int heid0, gsl_rng *r)
 
 
 
-int attempt_change_edge_type(Geometry &g, int heid0, gsl_rng *r)
+int attempt_change_edge_type(geometry &g, int heid0, gsl_rng *r)
 {
     //std::cout << "inin attempt change type"<<endl;
     int newtype = -1;
@@ -2693,7 +2693,7 @@ int attempt_change_edge_type(Geometry &g, int heid0, gsl_rng *r)
 /* two halfedges will bind and a doubleboundary vertex will be created. */
 /* boundary edges should be updated */
 /*************************************/
-int attempt_fusion(Geometry &g, gsl_rng *r)
+int attempt_fusion(geometry &g, gsl_rng *r)
 {
 
     //std::cout << "in attempt_fusion " << endl;
@@ -3163,7 +3163,7 @@ int attempt_fusion(Geometry &g, gsl_rng *r)
 /*****************Fission *********************/
 /* Nboundary should be>1 for this to happen */
 
-int attempt_fission(Geometry &g, gsl_rng *r)
+int attempt_fission(geometry &g, gsl_rng *r)
 {
     //std::cout << "in attempt Fission  " << endl;
     if (g.Nboundary < 2)
@@ -3574,7 +3574,7 @@ int attempt_fission(Geometry &g, gsl_rng *r)
 /************************** unbind wedge **************************/
 /******************************************************************/
 
-int attempt_unbind_wedge_dimer(Geometry &g, int heid0, gsl_rng *r)
+int attempt_unbind_wedge_dimer(geometry &g, int heid0, gsl_rng *r)
 {
     ////std::cout << "in attempt unbind_wedge "<< endl;
 
@@ -3660,11 +3660,11 @@ int attempt_unbind_wedge_dimer(Geometry &g, int heid0, gsl_rng *r)
 
 /* new test
 
-int attempt_bind_wedge_dimer(Geometry &g, int heid0, gsl_rng *r)
+int attempt_bind_wedge_dimer(geometry &g, int heid0, gsl_rng *r)
 {
 }*/
 
-int attempt_bind_wedge_dimer(Geometry &g, int heid0, gsl_rng *r)
+int attempt_bind_wedge_dimer(geometry &g, int heid0, gsl_rng *r)
 {
     ////std::cout << "in attempt_bind_wedge_dimer heid0 " << heid0 << endl;
     int heindex0 = g.heidtoindex[heid0]; // this edge on boundary
@@ -3792,7 +3792,7 @@ int attempt_bind_wedge_dimer(Geometry &g, int heid0, gsl_rng *r)
     return (-1);
 }
 
-int attempt_bind_triangle(Geometry &g, int heid0, gsl_rng *r) //
+int attempt_bind_triangle(geometry &g, int heid0, gsl_rng *r) //
 {
     //std::cout << "in attempt_bind_triangle heid0 " << heid0 << endl;
 
@@ -3879,7 +3879,7 @@ int attempt_bind_triangle(Geometry &g, int heid0, gsl_rng *r) //
     return (-1);
 }
 
-int attempt_unbind_triangle(Geometry &g, int heid0, gsl_rng *r)
+int attempt_unbind_triangle(geometry &g, int heid0, gsl_rng *r)
 {
 
     //std::cout << "in attempt_unbind_triangle heid0 " << heid0 << endl;
@@ -3933,7 +3933,7 @@ int attempt_unbind_triangle(Geometry &g, int heid0, gsl_rng *r)
     return (-1);
 }
 
-int attempt_add_drug(Geometry &g, int heid0, gsl_rng *r)
+int attempt_add_drug(geometry &g, int heid0, gsl_rng *r)
 {
 
     //std::cout << "in attempt adding drug " << heid0 <<endl;
@@ -4002,7 +4002,7 @@ int attempt_add_drug(Geometry &g, int heid0, gsl_rng *r)
         return -1;
     }
 }
-int attempt_remove_drug(Geometry &g, int heid0, gsl_rng *r)
+int attempt_remove_drug(geometry &g, int heid0, gsl_rng *r)
 {
     //std::cout << "in attempt remove drug " << heid0 <<endl;
     //std::cout << " g.Nd is " <<g.Nd<<endl;
@@ -4160,7 +4160,7 @@ void get_dimer_etypes(int etypeheid0, int etypenew1, int etypenew2, gsl_rng *r)
     //etypenew2=gsl_rng_uniform_int(r,4);
 }
 
-void make_seed(Geometry &g, gsl_rng *r)
+void make_seed(geometry &g, gsl_rng *r)
 {
     /*//if ((file = fopen(filename, "r")))
     //int frame = 0;
@@ -4328,11 +4328,11 @@ void make_seed(Geometry &g, gsl_rng *r)
     std::cout << endl;*/
 }
 
-void make_seed_T3(Geometry &g, gsl_rng *r)
+void make_seed_T3(geometry &g, gsl_rng *r)
 {
 }
 
-int force_add_monomer_with_next(Geometry &g, int heid0, int xid, gsl_rng *r)
+int force_add_monomer_with_next(geometry &g, int heid0, int xid, gsl_rng *r)
 {
 
     //std::cout << "in force_add_monomer_with_next" <<endl;

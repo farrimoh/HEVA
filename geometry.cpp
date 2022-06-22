@@ -1,11 +1,11 @@
 /*
- * Geometry.cpp
+ * geometry.cpp
  *
  *  Created on: Apr 25, 2019
  *      Author: farri
  */
 
-#include "Geometry.hpp"
+#include "geometry.hpp"
 #include "tri_tri_intersect.hpp"
 #include <iostream>
 #include <vector>
@@ -16,7 +16,7 @@
 #define PI 3.14159265
 using namespace std;
 
-Geometry::Geometry()
+geometry::geometry()
 {
 	// TODO Auto-generated constructor stub
 	Test_assembly = 0;
@@ -35,7 +35,7 @@ Geometry::Geometry()
 	phi0 = nullptr;
 }
 
-Geometry::~Geometry()
+geometry::~geometry()
 {
 	// TODO Auto-generated destructor stub
 	//delete[] v;
@@ -74,7 +74,7 @@ Geometry::~Geometry()
 	}
 }
 
-void Geometry::initialize(int Ntype0)
+void geometry::initialize(int Ntype0)
 {
 	Test_assembly=0; // for trial runs =1
 	Nvlast=0;
@@ -166,7 +166,7 @@ void Geometry::initialize(int Ntype0)
 	}
 }
 
-void Geometry::dump_parameters()
+void geometry::dump_parameters()
 {
 
 	FILE *pfile;
@@ -174,7 +174,7 @@ void Geometry::dump_parameters()
 	fprintf(pfile, "1");
 }
 
-void Geometry::update_index()
+void geometry::update_index()
 {
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
 	{
@@ -215,7 +215,7 @@ void Geometry::update_index()
 	//cout <<"T5" <<endl;
 }
 
-void Geometry::check_odd_neigh()
+void geometry::check_odd_neigh()
 {
 	int alln = 0;
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
@@ -254,7 +254,7 @@ void Geometry::check_odd_neigh()
 	}
 }
 
-void Geometry::update_neigh_vertex(int vid0)
+void geometry::update_neigh_vertex(int vid0)
 {
 	int vindex0 = vidtoindex[vid0];
 	if (v[vindex0].vneigh.size() > 0)
@@ -273,7 +273,7 @@ void Geometry::update_neigh_vertex(int vid0)
 	}
 }
 
-void Geometry::update_neigh_vertex_and_neigh(int vid0)
+void geometry::update_neigh_vertex_and_neigh(int vid0)
 {
 	/* update current neighbors */
 	for (vector<int>::iterator vit = v[vidtoindex[vid0]].vneigh.begin(); vit != v[vidtoindex[vid0]].vneigh.end(); ++vit)
@@ -291,7 +291,7 @@ void Geometry::update_neigh_vertex_and_neigh(int vid0)
 	}
 }
 
-void Geometry::update_neigh()
+void geometry::update_neigh()
 {
 	//cout << "update_neigh()"<<endl;
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
@@ -322,7 +322,7 @@ void Geometry::update_neigh()
 /* This function updates the boundary related parameters */
 /* Since I am keeping track of everything, (ToDo) it is possible to just keep it as validation step */
 
-void Geometry::update_boundary()
+void geometry::update_boundary()
 {
 	Nsurf = 0;
 	NAB = 0;
@@ -588,7 +588,7 @@ void Geometry::update_boundary()
 	Nsurf = boundary.size();
 }
 
-int Geometry::is_vboundary(int vid)
+int geometry::is_vboundary(int vid)
 { // 1 if
 	for (vector<int>::iterator it = boundaryv.begin(); it != boundaryv.end(); ++it)
 	{
@@ -598,7 +598,7 @@ int Geometry::is_vboundary(int vid)
 	return -1;
 }
 
-int Geometry::is_bond_vboundary(int vid)
+int geometry::is_bond_vboundary(int vid)
 {
 	for (vector<int>::iterator it = boundaryvbond.begin(); it != boundaryvbond.end(); ++it)
 	{
@@ -607,7 +607,7 @@ int Geometry::is_bond_vboundary(int vid)
 	}
 	return -1;
 }
-int Geometry::is_boundary(int heid0)
+int geometry::is_boundary(int heid0)
 { // it is on the boundary if it has no next prevoius
 	int heindex0 = heidtoindex[heid0];
 	//int opindex0=heidtoindex[he[heindex0].opid);
@@ -620,7 +620,7 @@ int Geometry::is_boundary(int heid0)
 	return -1; // not on boundary
 }
 
-int Geometry::is_bond_in_boundary(int heid0)
+int geometry::is_bond_in_boundary(int heid0)
 { // it is on the boundary if it has no next prevoius
 	if (heid0 == -1)
 	{
@@ -643,7 +643,7 @@ int Geometry::is_bond_in_boundary(int heid0)
 	return -1; // on boundary
 }
 
-int Geometry::is_bond_out_boundary(int heid0)
+int geometry::is_bond_out_boundary(int heid0)
 { // it is on the boundary if it has no next prevoius
 	if (heid0 == -1)
 	{
@@ -661,7 +661,7 @@ int Geometry::is_bond_out_boundary(int heid0)
 	return -1; // on boundary
 }
 
-int Geometry::no_bond_boundary(int heid0)
+int geometry::no_bond_boundary(int heid0)
 { // it is on the boundary if it has no next prevoius
 	int heindex0 = heidtoindex[heid0];
 	//int opindex0=heidtoindex[he[heindex0].opid);
@@ -674,7 +674,7 @@ int Geometry::no_bond_boundary(int heid0)
 	return -1; // on boundary
 }
 
-int Geometry::is_same_triangle(int heid0, int heid1)
+int geometry::is_same_triangle(int heid0, int heid1)
 {
 	if (heid0 == heid1)
 		return 1;
@@ -701,7 +701,7 @@ int Geometry::is_same_triangle(int heid0, int heid1)
 	return -1;
 }
 
-int Geometry::not_cross_edge(int heid0, int heid1)
+int geometry::not_cross_edge(int heid0, int heid1)
 {
 	int heindex0 = heidtoindex[heid0];
 	int heindex1 = heidtoindex[heid1];
@@ -725,7 +725,7 @@ int Geometry::not_cross_edge(int heid0, int heid1)
 	return 1;
 }
 
-int Geometry::next_open_wedge(int heid0)
+int geometry::next_open_wedge(int heid0)
 {
 	//cout <<" in next_open_wedge"<<endl;
 
@@ -797,7 +797,7 @@ int Geometry::next_open_wedge(int heid0)
 	return -1;
 }
 
-int Geometry::pre_open_wedge(int heid0)
+int geometry::pre_open_wedge(int heid0)
 {
 	if (Nhe < 10)
 	{
@@ -869,7 +869,7 @@ int Geometry::pre_open_wedge(int heid0)
 	return -1;
 }
 
-int Geometry::open_wedge(int heid0, int *flag) // ised in add_monomer_dimer
+int geometry::open_wedge(int heid0, int *flag) // ised in add_monomer_dimer
 {
 	//if (Nhe<21) { return -1;}
 	int heindex0 = heidtoindex[heid0]; // this edge
@@ -924,7 +924,7 @@ int Geometry::open_wedge(int heid0, int *flag) // ised in add_monomer_dimer
 	return -1;
 }
 
-int Geometry::next_connected_boundary(int vid0, int vid1)
+int geometry::next_connected_boundary(int vid0, int vid1)
 {
 	/*for (vector<VTX>::iterator it = v.begin() ; it != v.end(); ++it) {
 		
@@ -946,7 +946,7 @@ int Geometry::next_connected_boundary(int vid0, int vid1)
 	}
 	return -1;
 }
-int Geometry::connected(int vid0, int vid1)
+int geometry::connected(int vid0, int vid1)
 {
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
 	{
@@ -958,7 +958,7 @@ int Geometry::connected(int vid0, int vid1)
 	return -1;
 }
 
-int Geometry::connectedH(int heid0, int heid1)
+int geometry::connectedH(int heid0, int heid1)
 {
 	if (he[heidtoindex[heid0]].vin == he[heidtoindex[heid1]].vin)
 		return -1;
@@ -971,7 +971,7 @@ int Geometry::connectedH(int heid0, int heid1)
 	return 1;
 }
 
-void Geometry::add_vertex(double *xyz)
+void geometry::add_vertex(double *xyz)
 {
 	VTX *vtxi;
 	vtxi = new VTX;
@@ -992,7 +992,7 @@ void Geometry::add_vertex(double *xyz)
 	delete vtxi;
 }
 
-int Geometry::delete_vertex(int vid0)
+int geometry::delete_vertex(int vid0)
 {
 
 	int vindex0 = vidtoindex[vid0];
@@ -1004,7 +1004,7 @@ int Geometry::delete_vertex(int vid0)
 	return 1;
 }
 
-int Geometry::remove_neigh(int vid0, int removevid)
+int geometry::remove_neigh(int vid0, int removevid)
 {
 	int vindex0 = vidtoindex[vid0];
 	int counter = -1;
@@ -1032,7 +1032,7 @@ int Geometry::remove_neigh(int vid0, int removevid)
 	return 1;
 }
 
-int Geometry::delete_edge(int heid0)
+int geometry::delete_edge(int heid0)
 {
 	//cout << "IN DELETE EDGE " <<endl;
 
@@ -1071,7 +1071,7 @@ int Geometry::delete_edge(int heid0)
 	return 1;
 }
 
-void Geometry::add_half_edge_type(int vin0, int vout0, int etype, int b_index)
+void geometry::add_half_edge_type(int vin0, int vout0, int etype, int b_index)
 {
 	if (vin0 >= Nvlast || vout0 >= Nvlast)
 	{
@@ -1092,7 +1092,7 @@ void Geometry::add_half_edge_type(int vin0, int vout0, int etype, int b_index)
 	delete newhei;
 }
 
-int Geometry::add_edge_type(int vin0, int vout0, int etype)
+int geometry::add_edge_type(int vin0, int vout0, int etype)
 {
 	int b_index = -1;
 	if (vin0 >= Nvlast || vout0 >= Nvlast)
@@ -1151,7 +1151,7 @@ int Geometry::add_edge_type(int vin0, int vout0, int etype)
 	return 1;
 }
 
-int Geometry::opposite_edge(int heid0)
+int geometry::opposite_edge(int heid0)
 {
 	int heindex0 = heidtoindex[heid0];
 	int hevin = he[heindex0].vin;
@@ -1163,11 +1163,11 @@ int Geometry::opposite_edge(int heid0)
 			return it->id;
 		}
 	}
-	cout << " No opposite  Invalid GEometry" << endl;
+	cout << " No opposite  Invalid geometry" << endl;
 	exit(-1);
 }
 
-void Geometry::set_prev_next(int heid0, int previd0, int nextid0)
+void geometry::set_prev_next(int heid0, int previd0, int nextid0)
 {
 	int heindex = heidtoindex[heid0];
 	//cout << "heindex" <<endl;
@@ -1190,7 +1190,7 @@ void Geometry::set_prev_next(int heid0, int previd0, int nextid0)
 	he[heindex].previd_boundary = -1;
 }
 
-void Geometry::set_prev_next_boundary(int previd0, int nextid0)
+void geometry::set_prev_next_boundary(int previd0, int nextid0)
 {
 
 	if ((is_boundary(previd0) < 0) || (is_boundary(nextid0) < 0))
@@ -1221,7 +1221,7 @@ void Geometry::set_prev_next_boundary(int previd0, int nextid0)
 	he[nextindex].previd_boundary = previd0;
 }
 
-int Geometry::get_prev_next(int heid0, int *previd0, int *nextid0)
+int geometry::get_prev_next(int heid0, int *previd0, int *nextid0)
 {
 
 	int heindex0 = heidtoindex[heid0];
@@ -1266,7 +1266,7 @@ int Geometry::get_prev_next(int heid0, int *previd0, int *nextid0)
 	return -1;
 }
 
-double Geometry::add_dimer(int heid0, gsl_rng *r, int et1, int et2 , double *distance_vector)
+double geometry::add_dimer(int heid0, gsl_rng *r, int et1, int et2 , double *distance_vector)
 { // adds the dimer if it  has no next prev
 	if (heid0 >= Nhelast)
 	{
@@ -1415,7 +1415,7 @@ double Geometry::add_dimer(int heid0, gsl_rng *r, int et1, int et2 , double *dis
 	return success;
 }
 
-int Geometry::force_add_dimer(int heid0, double *newv, int typenext, int typeprev)
+int geometry::force_add_dimer(int heid0, double *newv, int typenext, int typeprev)
 { // adds the dimer if it  has no next prev
 	if (heid0 >= Nhelast)
 	{
@@ -1490,7 +1490,7 @@ int Geometry::force_add_dimer(int heid0, double *newv, int typenext, int typepre
 	return success;
 }
 
-int Geometry::remove_dimer(int heindex0, int heindexnext0)
+int geometry::remove_dimer(int heindex0, int heindexnext0)
 {
 	int vi = he[heindex0].vout;
 	if (he[heindexnext0].vin != vi)
@@ -1504,7 +1504,7 @@ int Geometry::remove_dimer(int heindex0, int heindexnext0)
 	return 1;
 }
 
-void Geometry::make_hexamer()
+void geometry::make_hexamer()
 {
 	/*make_triangle();
 	update_boundary();
@@ -1546,7 +1546,7 @@ void Geometry::make_hexamer()
 	*/
 }
 
-void Geometry::he_initialize(int heindex, int heid0, int vin0, int vout0, int etype, int b_index)
+void geometry::he_initialize(int heindex, int heid0, int vin0, int vout0, int etype, int b_index)
 {
 	he[heindex].id = heid0;
 	he[heindex].opid = -1;
@@ -1576,7 +1576,7 @@ void Geometry::he_initialize(int heindex, int heid0, int vin0, int vout0, int et
 	heidtoindex[heid0] = heindex;
 }
 
-void Geometry::update_edge(int heid0)
+void geometry::update_edge(int heid0)
 { //hevec hecent l n
 	int heindex = heidtoindex[heid0];
 	int vindex0 = vidtoindex[he[heindex].vin];
@@ -1634,7 +1634,7 @@ void Geometry::update_edge(int heid0)
 	delete[] tempv;
 }
 
-void Geometry::update_half_edge(int heid0)
+void geometry::update_half_edge(int heid0)
 { //hevec hecent l n
 	if (heid0 == -1)
 	{
@@ -1664,7 +1664,7 @@ void Geometry::update_half_edge(int heid0)
 	delete[] tempv;
 }
 
-int Geometry::add_monomer(int nextofnewid, int prevofnewid, int et)
+int geometry::add_monomer(int nextofnewid, int prevofnewid, int et)
 { //nextofnew prevofnew
 
 	int heid0 = prevofnewid;
@@ -1739,7 +1739,7 @@ int Geometry::add_monomer(int nextofnewid, int prevofnewid, int et)
 	return 1;
 }
 
-int Geometry::force_add_monomer(int nextofnewid, int prevofnewid, int etype)
+int geometry::force_add_monomer(int nextofnewid, int prevofnewid, int etype)
 { //nextofnew prevofnew
 	int heid0 = prevofnewid;
 	//cout << "in add_monomer" << "heid0 is prevofnewid " << heid0 <<endl;
@@ -1766,7 +1766,7 @@ int Geometry::force_add_monomer(int nextofnewid, int prevofnewid, int etype)
 	//delete[] tempv1; delete[] tempv2;
 	return 1;
 }
-int Geometry::add_monomer_dimer(int heid0)
+int geometry::add_monomer_dimer(int heid0)
 {
 
 	if (is_boundary(heid0) < 0)
@@ -1811,7 +1811,7 @@ int Geometry::add_monomer_dimer(int heid0)
 	return 1;
 }
 
-int Geometry::remove_monomer_dimer(int heid0, gsl_rng *r) /* NOT USED */
+int geometry::remove_monomer_dimer(int heid0, gsl_rng *r) /* NOT USED */
 {
 	/*if (!(is_boundary(heid0) > 0))
 	{
@@ -1949,7 +1949,7 @@ int Geometry::remove_monomer_dimer(int heid0, gsl_rng *r) /* NOT USED */
 	return 1;
 }
 
-void Geometry::move_v_epsilon(double len_move, double *pi, double *pf, gsl_rng *r)
+void geometry::move_v_epsilon(double len_move, double *pi, double *pf, gsl_rng *r)
 {
 	double *tempvec, *fvec;
 	tempvec = new double[3];
@@ -1969,7 +1969,7 @@ void Geometry::move_v_epsilon(double len_move, double *pi, double *pf, gsl_rng *
 	delete[] fvec;
 }
 
-double Geometry::move_p(double *pi, double *pf, gsl_rng *r)
+double geometry::move_p(double *pi, double *pf, gsl_rng *r)
 {
 	double *x;//tempvec, *fvec;
 	//tempvec = new double[3];
@@ -2006,7 +2006,7 @@ double Geometry::move_p(double *pi, double *pf, gsl_rng *r)
 	
 	return d;
 }
-double Geometry::move_p_gaussian(double len_v, double *pi, double *pf, gsl_rng *r)
+double geometry::move_p_gaussian(double len_v, double *pi, double *pf, gsl_rng *r)
 {
 	double *x;
 	x = new double[3];
@@ -2027,7 +2027,7 @@ double Geometry::move_p_gaussian(double len_v, double *pi, double *pf, gsl_rng *
 
 //find the projection of the vector in direction of 3 rotating axes
 // use this for gaussian correction
-double Geometry::find_project_dist_axes(int heindex0, double *newv, double *oldv , double *dis_vector_project )
+double geometry::find_project_dist_axes(int heindex0, double *newv, double *oldv , double *dis_vector_project )
 {
 
 	double *fvecx, *fvecy, *fvecz, *tempvec_dis , *tempvec;
@@ -2065,7 +2065,7 @@ double Geometry::find_project_dist_axes(int heindex0, double *newv, double *oldv
 }
 
 
-double Geometry::move_p_rotate_axes(int heindex0,double len_v, double *pi, double *pf, gsl_rng *r, double *dis_vector)
+double geometry::move_p_rotate_axes(int heindex0,double len_v, double *pi, double *pf, gsl_rng *r, double *dis_vector)
 {
 	// this is incomplete XXX
 	double *tempvec,*fvecx, *fvecy, *fvecz; // , *p;
@@ -2127,7 +2127,7 @@ double Geometry::move_p_rotate_axes(int heindex0,double len_v, double *pi, doubl
 
 
 
-double Geometry::move_p_gaussian_axes(int heindex0,double len_v, double *pi, double *pf, gsl_rng *r, double *dis_vector)
+double geometry::move_p_gaussian_axes(int heindex0,double len_v, double *pi, double *pf, gsl_rng *r, double *dis_vector)
 {
 
 	double *tempvec,*fvecx, *fvecy, *fvecz; // , *p;
@@ -2197,7 +2197,7 @@ double Geometry::move_p_gaussian_axes(int heindex0,double len_v, double *pi, dou
 
 
 
-double Geometry::new_vertex_edge_and_move(int heindex0, double *newv, int etnew,gsl_rng *r)
+double geometry::new_vertex_edge_and_move(int heindex0, double *newv, int etnew,gsl_rng *r)
 {
 	//cout << " in new_vertex_edge_and_move heindex0 is " << heindex0<<endl;
 	double *tempvec, *fvec , *fvecx , *fvecy; 
@@ -2302,7 +2302,7 @@ double Geometry::new_vertex_edge_and_move(int heindex0, double *newv, int etnew,
 }
 
 
-void Geometry::new_vertex_edge(int heindex0, double *newv, int etnew)
+void geometry::new_vertex_edge(int heindex0, double *newv, int etnew)
 {
 	
 	double *tempvec, *fvec , *fvecx , *fvecy; 
@@ -2373,7 +2373,7 @@ void Geometry::new_vertex_edge(int heindex0, double *newv, int etnew)
 	
 }
 
-void Geometry::new_vertex(int heindex0, double *newv)
+void geometry::new_vertex(int heindex0, double *newv)
 {
 
 	double *tempvec, *fvec; // , *p;
@@ -2436,7 +2436,7 @@ void Geometry::new_vertex(int heindex0, double *newv)
 }
 
 
-void Geometry::new_vertex_points(int heindex0, int ind ,double *newv)
+void geometry::new_vertex_points(int heindex0, int ind ,double *newv)
 {
 
 	double *tempvec,*fvecx, *fvecy, *fvecz; // , *p;
@@ -2478,7 +2478,7 @@ void Geometry::new_vertex_points(int heindex0, int ind ,double *newv)
 }
 
 
-void Geometry::hecenter(int heindex, double *vcenter)
+void geometry::hecenter(int heindex, double *vcenter)
 {
 	//cout << "he[heindex].vin" << he[heindex].vin;
 	int vindexi = vidtoindex[he[heindex].vin];
@@ -2494,7 +2494,7 @@ void Geometry::hecenter(int heindex, double *vcenter)
 
 	//cout << "in hecenter hei " << vi[0] << endl;
 }
-void Geometry::helen(int heindex, double *helen)
+void geometry::helen(int heindex, double *helen)
 {
 	int vindexi = vidtoindex[he[heindex].vin];
 	//cout << " he[heindex].vout " << he[heindex].vout;
@@ -2509,7 +2509,7 @@ void Geometry::helen(int heindex, double *helen)
 	delete[] tempvec;
 }
 
-int Geometry::get_normal(int heid0)
+int geometry::get_normal(int heid0)
 {
 	int heindex0 = heidtoindex[heid0];
 	//cout << "in get_normal" <<endl;
@@ -2550,7 +2550,7 @@ int Geometry::get_normal(int heid0)
 	return 1;
 }
 
-void Geometry::update_excluder_top_he(int heid)
+void geometry::update_excluder_top_he(int heid)
 {
 	double *vtemp = new double[3];
 	double *vtemp2 = new double[3];
@@ -2579,7 +2579,7 @@ void Geometry::update_excluder_top_he(int heid)
 	delete[] vtemp2;
 }
 
-void Geometry::update_excluder_top()
+void geometry::update_excluder_top()
 {
 
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
@@ -2588,7 +2588,7 @@ void Geometry::update_excluder_top()
 	}
 }
 
-void Geometry::update_normals()
+void geometry::update_normals()
 {
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
 	{
@@ -2605,7 +2605,7 @@ void Geometry::update_normals()
 	//}
 }
 
-void Geometry::update_normals_vertex(int vindex0)
+void geometry::update_normals_vertex(int vindex0)
 {
 	for (vector<int>::iterator ithe = v[vindex0].hein.begin(); ithe != v[vindex0].hein.end(); ithe++)
 	{
@@ -2640,7 +2640,7 @@ void Geometry::update_normals_vertex(int vindex0)
 	}
 }
 
-void Geometry::update_geometry_vertex(int vindex0)
+void geometry::update_geometry_vertex(int vindex0)
 {
 	//cout << "in update geometry vertex vindex0 " <<vindex0 <<endl;
 	for (vector<int>::iterator ithe = v[vindex0].hein.begin(); ithe != v[vindex0].hein.end(); ithe++)
@@ -2679,7 +2679,7 @@ void Geometry::update_geometry_vertex(int vindex0)
 	}
 }
 
-void Geometry::update_excluder_top_vertex(int vindex0)
+void geometry::update_excluder_top_vertex(int vindex0)
 {
 
 	for (vector<int>::iterator ithe = v[vindex0].hein.begin(); ithe != v[vindex0].hein.end(); ithe++)
@@ -2688,7 +2688,7 @@ void Geometry::update_excluder_top_vertex(int vindex0)
 	}
 }
 
-int Geometry::check_inside_overlap(int heid0)
+int geometry::check_inside_overlap(int heid0)
 {
 	if (Nhe <= 180)
 		return 1;
@@ -2770,7 +2770,7 @@ int Geometry::check_inside_overlap(int heid0)
 	return 1;
 }
 
-int Geometry::do_intersect(int heid1, int heid2)
+int geometry::do_intersect(int heid1, int heid2)
 {
 	if (is_boundary(heid1) > 0 || is_boundary(heid2) > 0)
 	{
@@ -2828,7 +2828,7 @@ int Geometry::do_intersect(int heid1, int heid2)
 	return overlap;
 }
 
-int Geometry::find_overlap_all()
+int geometry::find_overlap_all()
 {
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); it++)
 	{
@@ -2837,7 +2837,7 @@ int Geometry::find_overlap_all()
 	return 0;
 }
 
-int Geometry::find_overlap_g(int vid0)
+int geometry::find_overlap_g(int vid0)
 {
 	if (Nhe < 22)
 	{
@@ -2913,7 +2913,7 @@ int Geometry::find_overlap_g(int vid0)
 	return 1;
 }
 
-int Geometry::check_overlap_g(int vid0)
+int geometry::check_overlap_g(int vid0)
 {
 	if (Nhe < 22)
 	{
@@ -3024,7 +3024,7 @@ int Geometry::check_overlap_g(int vid0)
 	return 1;
 }
 
-int Geometry::check_overlap_centerv(double *newv) /* checks this v point with all other hecenters and vertices*/
+int geometry::check_overlap_centerv(double *newv) /* checks this v point with all other hecenters and vertices*/
 {
 	if (Nhe <= 6)
 		return 1;
@@ -3053,7 +3053,7 @@ int Geometry::check_overlap_centerv(double *newv) /* checks this v point with al
 	return 1;
 }
 
-int Geometry::check_overlap_centerh(double *newcenter) /* checks this he center point with all other hecenters*/
+int geometry::check_overlap_centerh(double *newcenter) /* checks this he center point with all other hecenters*/
 {
 	if (Nhe <= 6)
 		return 1;
@@ -3082,7 +3082,7 @@ int Geometry::check_overlap_centerh(double *newcenter) /* checks this he center 
 
 /*ENERGY HELPER FUNCTIONS */
 
-double Geometry::find_gbb(int etypenew, int etypenextofnew, int etypeprevifnew)
+double geometry::find_gbb(int etypenew, int etypenextofnew, int etypeprevifnew)
 {
 	double e1 = find_dg(etypenew, etypenextofnew, 0);
 	double e2 = find_dg(etypenextofnew, etypeprevifnew, 0);
@@ -3091,7 +3091,7 @@ double Geometry::find_gbb(int etypenew, int etypenextofnew, int etypeprevifnew)
 	return e1 + e2 + e3;
 }
 
-double Geometry::find_dg(int type, int typenext, bool drug)
+double geometry::find_dg(int type, int typenext, bool drug)
 {
 
 	/*/if ((typenext == 1 || typenext == 2) and (drug != 0))
@@ -3162,7 +3162,7 @@ double Geometry::find_dg(int type, int typenext, bool drug)
 	return (bindg);
 }
 
-double Geometry::stretch_energy(int heindex0)
+double geometry::stretch_energy(int heindex0)
 {
 	int et = he[heindex0].type;
 
@@ -3172,7 +3172,7 @@ double Geometry::stretch_energy(int heindex0)
 	return 0.5 * epsilon[et] * (he[heindex0].l - l0[et]) * (he[heindex0].l - l0[et]);
 }
 
-int Geometry::check_bind_wedge(int heid0)
+int geometry::check_bind_wedge(int heid0)
 {
 	int heindex0 = heidtoindex[heid0];
 	get_normal(he[heindex0].id);
@@ -3195,7 +3195,7 @@ int Geometry::check_bind_wedge(int heid0)
 	return 1;
 }
 
-double Geometry::bend_energy(int heindex0)
+double geometry::bend_energy(int heindex0)
 {
 	//cout << " \n\n     normal " << he[heindex0].n[0] << " " << he[heindex0].n[1] << " " << he[heindex0].n[2] << " " <<endl ;
 	//cout << "\n in bend_energy edge index is "  << heindex0<< endl;
@@ -3408,7 +3408,7 @@ double Geometry::bend_energy(int heindex0)
 	return bendE;
 }
 
-double Geometry::dimer_bend_energy(int heindex0)
+double geometry::dimer_bend_energy(int heindex0)
 {
 	if (he[heindex0].nextid == -1)
 	{
@@ -3486,7 +3486,7 @@ double Geometry::dimer_bend_energy(int heindex0)
 	return DbendE;
 }
 
-double Geometry::compute_bind_energy()
+double geometry::compute_bind_energy()
 {
 	double tot_bind = 0;
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
@@ -3500,7 +3500,7 @@ double Geometry::compute_bind_energy()
 	return tot_bind;
 }
 
-double Geometry::compute_energy()
+double geometry::compute_energy()
 {
 	double tot_eng = 0;
 	//update_normals();
@@ -3523,7 +3523,7 @@ double Geometry::compute_energy()
 	return tot_eng; // double count
 }
 
-double Geometry::monomer_energy(int heid0)
+double geometry::monomer_energy(int heid0)
 {
 	//heid0 is on the boundary
 	int heindex0 = heidtoindex[heid0];
@@ -3550,7 +3550,7 @@ double Geometry::monomer_energy(int heid0)
 	return (etot);
 }
 
-double Geometry::dimer_energy(int heid0, int heid1)
+double geometry::dimer_energy(int heid0, int heid1)
 {
 	//cout << "in dimer energy" << endl;
 	int heindex0 = heidtoindex[heid0];
@@ -3578,7 +3578,7 @@ double Geometry::dimer_energy(int heid0, int heid1)
 	return (etot);
 }
 
-double Geometry::vertex_energy(int vid0)
+double geometry::vertex_energy(int vid0)
 {
 	double v_eng = 0;
 	int vindex0 = vidtoindex[vid0];
@@ -3630,7 +3630,7 @@ double Geometry::vertex_energy(int vid0)
 	return v_eng;
 }
 
-/*void Geometry::get_prev_fusion_heid(int heidsurf0){ //not used
+/*void geometry::get_prev_fusion_heid(int heidsurf0){ //not used
 	//prev_fusion_heid
 	int heindexsurf=heidtoindex[heidsurf0];
 	int vid_in = he[heindexsurf].vin; //if this is next
@@ -3674,7 +3674,7 @@ double Geometry::vertex_energy(int vid0)
 /* if one of the half edges is bond and vertices on the other ends are not connected -> wedge_fusion_heid */
 /* otherwise if none of the two are bond on the other end,  fusion_heid*/
 
-void Geometry::get_next_fusion_heid(int heidsurf0)
+void geometry::get_next_fusion_heid(int heidsurf0)
 {
 
 	//next_fusion_heid
@@ -3754,7 +3754,7 @@ void Geometry::get_next_fusion_heid(int heidsurf0)
 	}
 }
 
-/*int Geometry::get_fusion_vid(int vidsurf0){
+/*int geometry::get_fusion_vid(int vidsurf0){
 
 	if (is_bond_vboundary(vidsurf0)>0)  { return -1;} 
 	//cout << "in get_fusion vid for vid0 " << vidsurf0 <<endl;   
@@ -3805,7 +3805,7 @@ void Geometry::get_next_fusion_heid(int heidsurf0)
 	return -1;
 }*/
 
-void Geometry::update_fusion_pairs_he()
+void geometry::update_fusion_pairs_he()
 {
 
 	//clear fusionhe (vector of all fusion edges)
@@ -3899,7 +3899,7 @@ void Geometry::update_fusion_pairs_he()
 }
 
 /*
-void Geometry::update_fusion_pairs(){
+void geometry::update_fusion_pairs(){
 
 
 	//clear fusionv (vector of all fusion vertices)
@@ -3939,7 +3939,7 @@ void Geometry::update_fusion_pairs(){
 
 }*/
 
-void Geometry::save_vtx(int vid0, VTX *tempvtx)
+void geometry::save_vtx(int vid0, VTX *tempvtx)
 {
 
 	int vindex0 = vidtoindex[vid0];
@@ -4038,7 +4038,7 @@ void randvec(double *v, gsl_rng *r)
 	//v[2]/=vlen;
 }
 
-void dump_lammps_traj(Geometry &g, int time0)
+void dump_lammps_traj(geometry &g, int time0)
 {
 	char filename[80];
 	float box = 3.0;
@@ -4142,7 +4142,7 @@ void dump_lammps_traj(Geometry &g, int time0)
 	fclose(f);
 }
 
-void dump_lammps_traj_restart(Geometry &g, int time0)
+void dump_lammps_traj_restart(geometry &g, int time0)
 { //currently no drug
 	char filename[80];
 	float box = 3.0;
@@ -4223,7 +4223,7 @@ void dump_lammps_traj_restart(Geometry &g, int time0)
 	fclose(f);
 }
 
-void dump_lammps_data_file(Geometry &g, int time0)
+void dump_lammps_data_file(geometry &g, int time0)
 {
 	char filename[80];
 	float box = 3.0;
@@ -4328,7 +4328,7 @@ void dump_lammps_data_file(Geometry &g, int time0)
 }
 
 
-void update_geometry_parameters(Geometry &g)
+void update_geometry_parameters(geometry &g)
 {
 	g.NAB=0;
 	g.NAB_in = 0;
@@ -4437,7 +4437,7 @@ void update_geometry_parameters(Geometry &g)
 }
 
 
-void dump_lammps_traj_dimers(Geometry &g, int time0)
+void dump_lammps_traj_dimers(geometry &g, int time0)
 {
 
 	char filename[80];
@@ -4611,7 +4611,7 @@ void dump_lammps_traj_dimers(Geometry &g, int time0)
 	fclose(f);
 }
 
-void dump_lammps_data_dimers(Geometry &g, int time0)
+void dump_lammps_data_dimers(geometry &g, int time0)
 {
 
 	char filename[80];
@@ -4785,7 +4785,7 @@ void rotatevec(double *vec, double *axis, double angle, double *vec2)
 }
 
 
-void read_points(Geometry &g)
+void read_points(geometry &g)
 {
 
 	char filename[80];
@@ -4815,7 +4815,7 @@ void read_points(Geometry &g)
 
 
 
-void read_lammps_data(Geometry &g, char filename[])
+void read_lammps_data(geometry &g, char filename[])
 {
 
 	int fNv = 42;
@@ -5015,7 +5015,7 @@ void read_lammps_data(Geometry &g, char filename[])
 }
 
 /* this fuction should be updated with boundary index */
-int read_restart_lammps_data_file(Geometry &g, char filename[])
+int read_restart_lammps_data_file(geometry &g, char filename[])
 {
 
 	int fNv = 0;
@@ -5144,7 +5144,7 @@ int read_restart_lammps_data_file(Geometry &g, char filename[])
 }
 
 /* this fuction should be updated with boundary index */
-int read_restart_lammps_data_traj(Geometry &g, FILE *trajfile, int step = -1)
+int read_restart_lammps_data_traj(geometry &g, FILE *trajfile, int step = -1)
 {
 
 	char s[100];
@@ -5293,7 +5293,7 @@ int read_restart_lammps_data_traj(Geometry &g, FILE *trajfile, int step = -1)
 	return (0);
 }
 
-void dump_restart_lammps_data_file(Geometry &g, int time0)
+void dump_restart_lammps_data_file(geometry &g, int time0)
 { //currently no drug
 	char filename[80];
 	float box = 3.0;
@@ -5373,7 +5373,7 @@ void dump_restart_lammps_data_file(Geometry &g, int time0)
 	fclose(f);
 }
 
-void dump_data_frame(Geometry &g, FILE *f, int time)
+void dump_data_frame(geometry &g, FILE *f, int time)
 {
 	double avgL0 = 0, avgL1 = 0, avgTheta0 = 0, avgTheta1 = 0, avgPhi00 = 0, avgPhi11 = 0, avgPhi01 = 0;
 	int L0 = 0, L1 = 0, Theta0 = 0, Theta1 = 0, Phi00 = 0, Phi11 = 0, Phi01 = 0;
@@ -5491,7 +5491,7 @@ void dump_data_frame(Geometry &g, FILE *f, int time)
 	fprintf(stderr, " L0 %.3f L1 %.3f Theta0 %.3f Theta1 %.3f Phi00 %.3f Phi11 %.3f Phi01 %.3f \n", avgL0 / L0, avgL1 / L1, avgTheta0 / Theta0, avgTheta1 / Theta1, avgPhi00 / Phi00, avgPhi11 / Phi11, avgPhi01 / Phi01);
 }
 
-void dump_analysis(Geometry &g, FILE *ofile, int sweep = -1, int seed = -1, int seconds = -1)
+void dump_analysis(geometry &g, FILE *ofile, int sweep = -1, int seed = -1, int seconds = -1)
 {
 
 	if (sweep == 0)
@@ -5506,7 +5506,7 @@ void dump_analysis(Geometry &g, FILE *ofile, int sweep = -1, int seed = -1, int 
 	fflush(ofile);
 }
 
-void recenter(Geometry &g)
+void recenter(geometry &g)
 {
 
 	double XCM = 0;
@@ -5535,7 +5535,7 @@ void recenter(Geometry &g)
 	g.update_boundary();
 }
 
-int surfclosev(Geometry &g)
+int surfclosev(geometry &g)
 {
 	int alln = 0;
 	for (vector<VTX>::iterator it = g.v.begin(); it != g.v.end(); ++it)
@@ -5581,9 +5581,9 @@ int surfclosev(Geometry &g)
 	}
 	return (surfclosevCount);
 }
-//void show_status(Geometry &g, int frame, int sweep, int seconds ){
+//void show_status(geometry &g, int frame, int sweep, int seconds ){
 
-void make_initial_triangle(Geometry &g)
+void make_initial_triangle(geometry &g)
 {
 	double xyz0[3];
 	xyz0[0] = 0;
@@ -5626,7 +5626,7 @@ void make_initial_triangle(Geometry &g)
 	g.update_boundary();
 }
 
-void make_initial_pentamer(Geometry &g)
+void make_initial_pentamer(geometry &g)
 {
 	double xyz0[3];
 	xyz0[0] = 0;
@@ -5697,7 +5697,7 @@ void make_initial_pentamer(Geometry &g)
 	g.update_boundary();
 }
 
-int check_bind_triangle(Geometry &g) //
+int check_bind_triangle(geometry &g) //
 {
 	//cout << "in attempt_bind_triangle heid0 " << heid0 << endl;
 	for (vector<int>::iterator it = g.boundary.begin(); it != g.boundary.end(); ++it)
