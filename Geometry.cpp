@@ -2,11 +2,11 @@
  * Geometry.cpp
  *
  *  Created on: Apr 25, 2019
- *      Author: farr6
+ *      Author: farri
  */
 
-#include "Geometry.h"
-#include "tri_tri_intersect.h"
+#include "Geometry.hpp"
+#include "tri_tri_intersect.hpp"
 #include <iostream>
 #include <vector>
 #include <math.h>
@@ -19,12 +19,13 @@ using namespace std;
 Geometry::Geometry()
 {
 	// TODO Auto-generated constructor stub
-	Test_assembly=0;
+	Test_assembly = 0;
 	Nvlast = 0;
 	Nhelast = 0;
 	Ntype = 0;
 	Nv = 0;
 	Nv5 = 0;
+	Nv6 = 0;
 	Nhe = 0;
 	epsilon = nullptr;
 	kappa = nullptr;
@@ -58,34 +59,79 @@ Geometry::~Geometry()
 	{
 		he.clear();
 	}
-	if (surfheid.size() > 0)
+	if (boundary.size() > 0)
 	{
-		surfheid.clear();
+		boundary.clear();
 	}
-	if (surfv.size() > 0)
+	if (boundaryv.size() > 0)
 	{
-		surfv.clear();
+		boundaryv.clear();
 	}
 
 	if (fusionv.size() > 0)
 	{
-		surfv.clear();
+		boundaryv.clear();
 	}
 }
 
 void Geometry::initialize(int Ntype0)
 {
-	Nvlast = 0;
-	Nhelast = 0;
-	Ntype = Ntype0;
-	Nv = 0;
-	Nhe = 0;
-	Nv5 = 0;
-	Nsurf = 0;
+	Test_assembly=0; // for trial runs =1
+	Nvlast=0;
+	Nhelast=0;
+	Ntype=Ntype0;
+	Nv=0;
+	Nv5=0;
+	Nv6=0;
+	Nhe=0;
+	Nsurf=0;
+	Nd=0;
 	NAB=0;
+	NAB_in=0;
 	NCD=0;
-	vidtoindex = new int[1000000];
-	heidtoindex = new int[1000000];
+	NCD_T4=0;
+	NCD_T3=0;
+	NCD_T4_in=0;
+	NCD_T3_in=0;
+	NCD_Hex=0;
+	NCD_other=0;
+	Nv_in=0;
+	Nhe_in=0;
+	Nboundary=1;
+	Nboundarylast=0;
+	accepted_vmove=0;
+	rejected_vmove=0;
+
+	all_neigh=0;
+	gb0=0;
+	dg=0;
+	mudimer=0;
+	mudrug=0;
+
+	gaussian_sigma=0;
+	l_thermal_sigma=0;
+	l_thermal_kappa=0;
+	theta_thermal_kappa=0;
+
+	drugProb=0;
+	T=1;
+
+	xi=0;
+
+	lenpoints=200000;
+	dist_points = new double *[lenpoints];
+
+	for (int i = 0; i < lenpoints; i++)
+	{
+		dist_points[i] = new double[3];
+		for (int j = 0; j < 3; j++)
+		{
+			dist_points[i][j]=0.0;
+		}
+	}
+
+	vidtoindex = new int[2000000000];
+	heidtoindex = new int[2000000000];
 	epsilon = new double[Ntype];
 	kappa = new double[Ntype];
 	kappaPhi = new double[Ntype];
@@ -105,11 +151,11 @@ void Geometry::initialize(int Ntype0)
 		theta0[i] = -1;
 		l0[i] = -1;
 		gb[i] = new double[Ntype];
-		gdrug[i]= new double[Ntype];
+		gdrug[i] = new double[Ntype];
 		for (int j = 0; j < Ntype; j++)
 		{
 			gb[i][j] = 0;
-			gdrug[i][j]=0;
+			gdrug[i][j] = 0;
 		}
 	}
 
@@ -119,6 +165,7 @@ void Geometry::initialize(int Ntype0)
 		heidtoindex[i] = -1;
 	}
 }
+
 void Geometry::dump_parameters()
 {
 
@@ -161,63 +208,86 @@ void Geometry::update_index()
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
 	{
 		v[vidtoindex[it->vout]].hein.push_back(it->id);
-		//if ((is_surface(it->id))>0 && (is_vsurface(it->vout)>0)) { v[vidtoindex[it->vout]].hesurfinid=it->id; }
-		
+		//if ((is_boundary(it->id))>0 && (is_vboundary(it->vout)>0)) { v[vidtoindex[it->vout]].hesurfinid=it->id; }
+
 		//v[vidtoindex[it->vin]].hein.push_back(*it);
 	}
 	//cout <<"T5" <<endl;
-
 }
-
 
 void Geometry::check_odd_neigh()
 {
-	int alln=0;
+	int alln = 0;
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
 	{
-		alln+=it->vneigh.size();
+		alln += it->vneigh.size();
 		//cout<< "vindex is " << distance(v.begin(),it) <<  " vid is" << it->vid ;
 		//for (vector<int>::iterator itv = it->vneigh.begin(); itv != it->vneigh.end(); itv++)
 		//{
-			
-		//	cout <<"     neighbors are " << *itv << " vindex is " << vidtoindex[*itv];  
+
+		//	cout <<"     neighbors are " << *itv << " vindex is " << vidtoindex[*itv];
 		//	if (vidtoindex[*itv]==-1) { cout << "wrong neighbor" <<endl; exit(-1);}
 		//}
 		//cout <<endl;
 	}
-	if (alln%2!=0) { update_neigh(); 
-		alln=0;
+	if (alln % 2 != 0)
+	{
+		update_neigh();
+		alln = 0;
 		for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
 		{
-			alln+=it->vneigh.size();
+			alln += it->vneigh.size();
 			//cout<< "vindex is " << distance(v.begin(),it) <<  " vid is" << it->vid ;
 			//for (vector<int>::iterator itv = it->vneigh.begin(); itv != it->vneigh.end(); itv++)
 			//{
-				
-			//	cout <<"     neighbors are " << *itv << " vindex is " << vidtoindex[*itv];  
+
+			//	cout <<"     neighbors are " << *itv << " vindex is " << vidtoindex[*itv];
 			//	if (vidtoindex[*itv]==-1) { cout << "wrong neighbor" <<endl; exit(-1);}
 			//}
 			//cout <<endl;
 		}
-		if (alln%2!=0) { cout <<" check_neigh odd neighbors" <<endl; exit(-1);}
+		if (alln % 2 != 0)
+		{
+			cout << " check_neigh odd neighbors" << endl;
+			exit(-1);
+		}
 	}
 }
 
 void Geometry::update_neigh_vertex(int vid0)
 {
-	int vindex0=vidtoindex[vid0];
+	int vindex0 = vidtoindex[vid0];
 	if (v[vindex0].vneigh.size() > 0)
 	{
 		v[vindex0].vneigh.clear();
 	}
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
 	{
-		if (vid0!= it->vid && connected(vid0,it->vid)<0 ){ //} && next_connected(vid0,it->vid)<0){
-			if (veclen(v[vindex0].co,it->co)<2*xi){
+		if (vid0 != it->vid && connected(vid0, it->vid) < 0)
+		{ //} && next_connected(vid0,it->vid)<0){
+			if (veclen(v[vindex0].co, it->co) < 3* xi)
+			{
 				v[vindex0].vneigh.push_back(it->vid);
-			}	
+			}
 		}
+	}
+}
 
+void Geometry::update_neigh_vertex_and_neigh(int vid0)
+{
+	/* update current neighbors */
+	for (vector<int>::iterator vit = v[vidtoindex[vid0]].vneigh.begin(); vit != v[vidtoindex[vid0]].vneigh.end(); ++vit)
+	{
+		update_neigh_vertex(*vit);
+	}
+
+	/* update this vertex */
+	update_neigh_vertex(vid0);
+
+	/* update new neighbors */
+	for (vector<int>::iterator vit = v[vidtoindex[vid0]].vneigh.begin(); vit != v[vidtoindex[vid0]].vneigh.end(); ++vit)
+	{
+		update_neigh_vertex(*vit);
 	}
 }
 
@@ -234,94 +304,230 @@ void Geometry::update_neigh()
 
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
 	{
-		for (vector<VTX>::iterator secondit = v.begin(); secondit != v.end(); ++secondit)
+		update_neigh_vertex(it->vid);
+		/*for (vector<VTX>::iterator secondit = v.begin(); secondit != v.end(); ++secondit)
 		{
-			if (it->vid!= secondit->vid && connected(it->vid,secondit->vid)<0 ) { //&& next_connected(it->vid,secondit->vid)<0){
-				if (veclen(it->co,secondit->co)<2*xi){
+			if (it->vid != secondit->vid && connected(it->vid, secondit->vid) < 0)
+			{ //&& next_connected(it->vid,secondit->vid)<0){
+				if (veclen(it->co, secondit->co) < 2 * xi)
+				{
 					it->vneigh.push_back(secondit->vid);
-				}	
+				}
 			}
-
-		}
+		}*/
 	}
-			
-
 }
-void Geometry::update_surface()
-{ // all heid with no next prev
-	//Nsurf=0;
-	//cout << "in update surface"<<endl;
-	all_neigh=0;
-	if (surfheid.size() > 0)
-	{
-		surfheid.clear();
-	}
-	if (surfv.size() > 0)
-	{
-		surfv.clear();
-	}
-	if (surfvbond.size() > 0)
-	{
-		surfvbond.clear();
-	}
-	NAB=0;
-	NCD=0;
+
+/****************** update boundary **********************/
+/* This function updates the boundary related parameters */
+/* Since I am keeping track of everything, (ToDo) it is possible to just keep it as validation step */
+
+void Geometry::update_boundary()
+{
+	Nsurf = 0;
+	NAB = 0;
+	NCD = 0;
+
+	//cout << "in update boundary"<<endl;
+
+	//clear the boundary
+	if (boundary.size() > 0)
+		boundary.clear();
+	if (boundaryv.size() > 0)
+		boundaryv.clear();
+	if (boundaryvbond.size() > 0)
+		boundaryvbond.clear();
+
+	//clear hein, hebundaryoutid hebundaryoutid2 (for double boundary) , update all_neigh
+	all_neigh = 0;
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
 	{
-		it->hesurfinid=-1;
-		//it->hesurfoutid=-1;
+		it->heboundaryoutid = -1;
+		it->heboundaryoutid2 = -1;
 		if (it->hein.size() > 0)
-		{
 			it->hein.clear();
-		}
-		all_neigh+=it->vneigh.size();
+		all_neigh += it->vneigh.size();
 	}
 
 	//UPDATE INDICES
-	update_index();
+	update_index(); // this also update hein for vertices // why not here?
 
-	// Update Surfheid , SurfV (he->vin) , Surfvbond
+	// Update boundaryheid , boundaryv (he->vin) , boundaryvbond
+	// if !double surf ->
+
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
 	{
-		if (it->type==0) NCD++;
-		if (it->type==1) NAB++;
-		// update vertex
+		////cout << " heid" << it->id <<" boundary_index " << it->boundary_index <<endl;
+		//it->nextid_boundary=-1;
+		//it->previd_boundary=-1;
 
-		if (is_surface(it->id) > 0)
+		if (it->type == 0)
+			NCD++;
+		if (it->type == 1)
+			NAB++;
+
+		// update vertex hein and double check boundary_index
+
+		if (is_boundary(it->id) > 0)
 		{
-			surfheid.push_back(it->id);
-			v[vidtoindex[it->vout]].hesurfinid=it->id;
+			boundary.push_back(it->id);
 
-			surfv.push_back(it->vin);
-			//cout << "surface updated with edge id " << it->id << endl<< endl;
-		
+			//all vertices have heboundaryoutid , doubleboundaries have 2
+			v[vidtoindex[it->vin]].heboundaryoutid = it->id;
+
+			boundaryv.push_back(it->vin);
+			//cout << "boundary updated with edge id " << it->id << endl<< endl;
+			//if (it->boundary_index==-1) { it->boundary_index=0;}
+			//cout << " in update boundary - wrong boundary boundary index"<<endl; cout << " heid" << it->id <<" boundary_index " << it->boundary_index <<endl; exit(-1);}
 		}
 
-		if (is_bond_in_surface(it->id) >= 0)
+		//else {
+		//if (it->boundary_index!=-1) { it->boundary_index=-1;}
+		//cout << " in update boundary - wrong inside boundary_index"<<endl; cout << " heid" << it->id <<" boundary_index " << it->boundary_index <<endl;exit(-1);}
+		//}
+
+		if (is_bond_in_boundary(it->id) >= 0)
 		{
-			surfvbond.push_back(it->vin);
+			boundaryvbond.push_back(it->vin);
 		}
-		
-		if (it->vin == -1 || it->vout == -1 ) 
+
+		if (it->vin == -1 || it->vout == -1)
 		{
-			cout << " update_surface ! error in vin vout of edge " << it->id << " it->vin " << it->vin <<" it->vout " << it->vout << endl;
+			cout << " update_boundary ! error in vin vout of edge " << it->id << " it->vin " << it->vin << " it->vout " << it->vout << endl;
 			exit(-1);
 		}
 
-		if (vidtoindex[it->vin] == -1 || vidtoindex[it->vout] == -1) {
-			cout << " update_surface ! error in vin vout of edge " << it->id << " vidtoindex[it->vin] " << vidtoindex[it->vin] <<" vidtoindex[it->vout] " <<vidtoindex[it->vout] << endl;
+		if (vidtoindex[it->vin] == -1 || vidtoindex[it->vout] == -1)
+		{
+			cout << " update_boundary ! error in vin vout of edge " << it->id << " vidtoindex[it->vin] " << vidtoindex[it->vin] << " vidtoindex[it->vout] " << vidtoindex[it->vout] << endl;
 			exit(-1);
-
 		}
-
 	}
-	//cout << "AFTER first set of initialization in update surface"<<endl;
+	//cout << "in update boundary 222"<<endl;
+	int N_doubleboundary = 0;
+	// update doubleboundary vertices
+	for (vector<int>::iterator vt = boundaryv.begin(); vt != boundaryv.end(); ++vt)
+	{
+		int vindex0 = vidtoindex[*vt];
+
+		v[vindex0].doubleboundary = -1;
+
+		int nboundary = 0;
+
+		for (vector<int>::iterator it = v[vindex0].hein.begin(); it != v[vindex0].hein.end(); ++it)
+		{
+			if (is_boundary(*it) > 0)
+				nboundary++;
+		}
+
+		if (nboundary == 2)
+		{
+			//cout << "*vt " << *vt << "doubleboundary" << v[vindex0].doubleboundary << endl;
+			v[vindex0].doubleboundary = 1;
+			N_doubleboundary++;
+		}
+	}
+	//g.Nboundary=N_doubleboundary+1;
+	// now go over the boundary again and add the heboundaryoutid2
+	for (vector<int>::iterator it = boundary.begin(); it != boundary.end(); ++it)
+	{
+
+		int vin0 = he[heidtoindex[*it]].vin;
+		if (v[vidtoindex[vin0]].doubleboundary == 1)
+		{
+			if ((v[vidtoindex[vin0]].heboundaryoutid != *it) && (v[vidtoindex[vin0]].heboundaryoutid2 == -1))
+			{
+				v[vidtoindex[vin0]].heboundaryoutid2 = *it;
+			}
+		}
+	}
+	//cout << "in update boundary 333"<<endl;
+	//if (Nboundary != 1) cout << "AFTER first set of initialization in update boundary"<<endl;
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
 	{
 		update_half_edge(it->id);
-		
+
+		if (Nhe == 6) //(Nboundary == 1)
+		{
+			if (is_boundary(it->id) > 0)
+			{
+				if (it->boundary_index == -1)
+				{
+					it->boundary_index = 0;
+				}
+				//cout << " in update boundary - wrong boundary boundary index"<<endl; cout << " heid" << it->id <<" boundary_index " << it->boundary_index <<endl; exit(-1);}
+				//update boundary_nextindex
+				it->nextid_boundary = v[vidtoindex[it->vout]].heboundaryoutid;
+				he[heidtoindex[v[vidtoindex[it->vout]].heboundaryoutid]].previd_boundary = it->id;
+			}
+			else
+			{
+				if (it->boundary_index != -1)
+				{
+					it->boundary_index = -1;
+				}
+				//cout << " in update boundary - wrong inside boundary_index"<<endl; cout << " heid" << it->id <<" boundary_index " << it->boundary_index <<endl;exit(-1);}
+			}
+		}
+		else
+		{
+
+			if (is_boundary(it->id) > 0)
+			{
+				if (it->boundary_index == -1)
+				{
+					cout << " in update boundary - wrong boundary boundary index" << endl;
+					cout << " heid " << it->id << " boundary_index " << it->boundary_index << endl;
+					exit(-1);
+				}
+
+				/*************** Temp Test the nextid_boundary ******/
+				if (it->boundary_index != he[heidtoindex[it->nextid_boundary]].boundary_index || it->boundary_index != he[heidtoindex[it->previd_boundary]].boundary_index)
+				{
+					cout << "error in boundary index" << endl;
+					cout << " heid " << it->id << " boundary_index " << it->boundary_index;
+					cout << " nextid_boundary " << it->nextid_boundary << " boundary index of nextid_boundary " << he[heidtoindex[it->nextid_boundary]].boundary_index;
+					cout << " previd_boundary " << it->previd_boundary << " boundary index of previd_boundary " << he[heidtoindex[it->previd_boundary]].boundary_index << endl;
+					exit(-1);
+				}
+
+				/*************** Temp Test the nextid_boundary ******/
+				if (it->nextid != -1)
+				{
+					if (it->nextid_boundary != it->nextid)
+					{
+						cout << "next previous dont match nextid_boundary previd_boundary" << endl;
+						cout << " heid " << it->id;
+						cout << " nextid " << it->nextid << " nextid_boundary " << it->nextid_boundary;
+						cout << " previd " << it->previd << " previd_boundary " << it->previd_boundary << endl;
+						exit(-1);
+					}
+				}
+				if (it->previd != -1)
+				{
+					if (it->previd_boundary != it->previd)
+					{
+						cout << "next previous dont match nextid_boundary previd_boundary" << endl;
+						cout << " heid " << it->id;
+						cout << " nextid " << it->nextid << " nextid_boundary " << it->nextid_boundary;
+						cout << " previd " << it->previd << " previd_boundary " << it->previd_boundary << endl;
+						exit(-1);
+					}
+				}
+			}
+			else
+			{
+				if (it->boundary_index != -1)
+				{
+					cout << " error in update boundary - wrong inside boundary_index" << endl;
+					cout << " heid" << it->id << " boundary_index " << it->boundary_index << endl;
+					exit(-1);
+				}
+			}
+		}
 	}
-	//cout << "AFTER second set of initialization in update surface"<<endl;
+
+	//cout << "AFTER second set of initialization in update boundary"<<endl;
 	/****************************************************************************/
 	/********************use this only in validation steps **********************/
 	/****************************************************************************/
@@ -344,7 +550,7 @@ void Geometry::update_surface()
 			if (he[nextindex].previd == -1)
 			{
 				cout << " it->id " << it->id << "it->nextid" << it->nextid << "nextindex" << nextindex << endl;
-				cout << "wrong g.he[nextindex].previd in update surface edge" << it->id << " he[nextindex].previd " << he[nextindex].previd << endl;
+				cout << "wrong g.he[nextindex].previd in update boundary edge" << it->id << " he[nextindex].previd " << he[nextindex].previd << endl;
 				exit(-1);
 			}
 		}
@@ -355,40 +561,36 @@ void Geometry::update_surface()
 			if (he[previndex].nextid == -1)
 			{
 				cout << "it->previd" << it->previd << "previndex" << previndex << endl;
-				cout << "wrong g.he[previndex].nextid in update surfaceedge" << it->id << " he[previndex].nextid " << he[previndex].nextid << endl;
+				cout << "wrong g.he[previndex].nextid in update boundaryedge" << it->id << " he[previndex].nextid " << he[previndex].nextid << endl;
 				exit(-1);
 			}
 		}
 	}*/
-	/*for (vector<int>::iterator it = surfheid.begin(); it != surfheid.end(); ++it)
+	/*for (vector<int>::iterator it = boundary.begin(); it != boundary.end(); ++it)
 	{
 		
-		//if ((is_surface(it->id))>0 && (is_vsurface(it->vout)>0)) { v[vidtoindex[it->vout]].hesurfinid=it->id; }
+		//if ((is_boundary(it->id))>0 && (is_vboundary(it->vout)>0)) { v[vidtoindex[it->vout]].heboundaryinid=it->id; }
 		cout << "heid" << *it << " next " << he[heidtoindex[*it]].nextid << " prev " << he[heidtoindex[*it]].previd << endl;
 		cout << "vin " << he[heidtoindex[*it]].vin << "vout " << he[heidtoindex[*it]].vout <<endl;
 		//v[vidtoindex[it->vin]].hein.push_back(*it);
 	}*/
 
-	//XXXXX update nearsurf
-	/*for (vector<int>::iterator vt = surfv.begin(); vt != surfv.end(); ++vt)
-	{
-		vindex0=vidtoindex[vt];
-		for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
-		{
-			if v->nearsurf!=1 and veclen(v[vidtoindex[it->vid]==])
-		
-		//cout << "id " << *vt << " v[vidtoindex[*vt]].hesurfinid" << v[vidtoindex[*vt]].hesurfinid <<endl;
-	}*/
 	//TEMP DOUBLE CHECK
-	
-
+	/*
+	for (vector<int>::iterator ht = boundary.begin(); ht != boundary.end(); ++ht)
+	{
+		//cout << "on boundary" <<endl;
+		//cout << "id " << *ht << " next id " << he[heidtoindex[*ht]].nextid << " prev id " << he[hei:update_boundary
+		he[heidtoindex[*ht]].previd_boundary=he[heidtoindex[*ht]].previd;
+	}*/
 	update_normals();
-	//Nsurf=surfheid.size();
-	Nsurf = surfheid.size();
+	update_excluder_top();
+	Nsurf = boundary.size();
 }
-int Geometry::is_vsurface(int vid)
+
+int Geometry::is_vboundary(int vid)
 { // 1 if
-	for (vector<int>::iterator it = surfv.begin(); it != surfv.end(); ++it)
+	for (vector<int>::iterator it = boundaryv.begin(); it != boundaryv.end(); ++it)
 	{
 		if (*it == vid)
 			return 1;
@@ -396,92 +598,108 @@ int Geometry::is_vsurface(int vid)
 	return -1;
 }
 
-int Geometry::is_bond_vsurface(int vid)
+int Geometry::is_bond_vboundary(int vid)
 {
-	for (vector<int>::iterator it = surfvbond.begin(); it != surfvbond.end(); ++it)
+	for (vector<int>::iterator it = boundaryvbond.begin(); it != boundaryvbond.end(); ++it)
 	{
 		if (*it == vid)
 			return 1;
 	}
 	return -1;
 }
-int Geometry::is_surface(int heid0)
-{ // it is on the surface if it has no next prevoius
+int Geometry::is_boundary(int heid0)
+{ // it is on the boundary if it has no next prevoius
 	int heindex0 = heidtoindex[heid0];
 	//int opindex0=heidtoindex[he[heindex0].opid);
 	if (he[heindex0].nextid == -1 || he[heindex0].previd == -1)
-	{ // on surface
-		//cout << " he " << heid0 << " on surface " ;
+	{ // on boundary
+		//cout << " he " << heid0 << " on boundary " ;
 		return 1;
 	}
-	//cout << " in is_surface normal is " << he[heindex0].n[0] << " " <<endl;
-	return -1; // not on surface
+	//cout << " in is_boundary normal is " << he[heindex0].n[0] << " " <<endl;
+	return -1; // not on boundary
 }
 
-int Geometry::is_bond_in_surface(int heid0)
-{ // it is on the surface if it has no next prevoius
-	if (heid0==-1) { cout << "id does not exist !!!!!!! in is_bond_in_surface " <<endl; exit(-1); }
+int Geometry::is_bond_in_boundary(int heid0)
+{ // it is on the boundary if it has no next prevoius
+	if (heid0 == -1)
+	{
+		cout << "id does not exist !!!!!!! in is_bond_in_boundary " << endl;
+		exit(-1);
+	}
 	int heindex0 = heidtoindex[heid0];
 	//int opindex0=heidtoindex[he[heindex0].opid);
-	//cout<<"in Is_bond_surface) for edge heid0 "<<heid0 << endl;
-	//cout<<"he[heindex0].nextid" << he[heindex0].nextid << "and  he[heindex0].previd " << he[heindex0].previd <<endl;
+	//cout<<"in Is_bond_boundary) for edge heid0 "<<heid0 << endl;
+	//cout<<"he[heindex0].nextid" << he[heindex0].nextid << "and  he[heindex0].previd " << he[heindex0].previd <<endl
+
 	if (he[heindex0].nextid == -1 && he[heindex0].previd != -1)
-	{ // not on surface
-		//cout << " he " << heid0 << " is bond_in surface " ;
+	{ // not on boundary
+		//cout << " he " << heid0 << " is bond_in boundary " ;
 		//cout << "now return he[heindex0].vin" << he[heindex0].vin <<endl;
 		return (he[heindex0].vin);
 	}
 
-	//cout << " in is_surface normal is " << he[heindex0].n[0] << " " <<endl;
-	return -1; // on surface
+	//cout << " in is_boundary normal is " << he[heindex0].n[0] << " " <<endl;
+	return -1; // on boundary
 }
 
-int Geometry::is_bond_out_surface(int heid0)
-{ // it is on the surface if it has no next prevoius
-	if (heid0==-1) { cout << "id does not exist !!!!!!! in is_bond_out_surface " <<endl; exit(-1); }
+int Geometry::is_bond_out_boundary(int heid0)
+{ // it is on the boundary if it has no next prevoius
+	if (heid0 == -1)
+	{
+		cout << "id does not exist !!!!!!! in is_bond_out_boundary " << endl;
+		exit(-1);
+	}
 	int heindex0 = heidtoindex[heid0];
 	//int opindex0=heidtoindex[he[heindex0].opid);
 	if (he[heindex0].nextid != -1 && he[heindex0].previd == -1)
-	{ // not on surface
-		//cout << " he " << heid0 << " not on surface " ;
+	{ // not on boundary
+		//cout << " he " << heid0 << " not on boundary " ;
 		return he[heindex0].vout;
 	}
-	//cout << " in is_surface normal is " << he[heindex0].n[0] << " " <<endl;
-	return -1; // on surface
+	//cout << " in is_boundary normal is " << he[heindex0].n[0] << " " <<endl;
+	return -1; // on boundary
 }
 
-int Geometry::no_bond_surface(int heid0)
-{ // it is on the surface if it has no next prevoius
+int Geometry::no_bond_boundary(int heid0)
+{ // it is on the boundary if it has no next prevoius
 	int heindex0 = heidtoindex[heid0];
 	//int opindex0=heidtoindex[he[heindex0].opid);
 	if ((he[heindex0].nextid == -1 && he[heindex0].previd == -1))
-	{ // not on surface
-		//cout << " he " << heid0 << " not on surface " ;
+	{ // not on boundary
+		//cout << " he " << heid0 << " not on boundary " ;
 		return 1;
 	}
-	//cout << " in is_surface normal is " << he[heindex0].n[0] << " " <<endl;
-	return -1; // on surface
+	//cout << " in is_boundary normal is " << he[heindex0].n[0] << " " <<endl;
+	return -1; // on boundary
 }
 
 int Geometry::is_same_triangle(int heid0, int heid1)
 {
-	if (heid0==heid1) return 1;
+	if (heid0 == heid1)
+		return 1;
 	int heindex0 = heidtoindex[heid0];
-	if (heid1==he[heindex0].opid) return 1;
+	if (heid1 == he[heindex0].opid)
+		return 1;
 	int heopindex0 = heidtoindex[he[heindex0].opid];
-	int opnextid=he[heopindex0].nextid;
-	int opprevid=he[heopindex0].previd;
-	if (opnextid != -1) {
-		if (heid1==opnextid) return 1;
-		if (heid1==he[heidtoindex[opnextid]].opid) return 1;
+	int opnextid = he[heopindex0].nextid;
+	int opprevid = he[heopindex0].previd;
+	if (opnextid != -1)
+	{
+		if (heid1 == opnextid)
+			return 1;
+		if (heid1 == he[heidtoindex[opnextid]].opid)
+			return 1;
 	}
-	if (opprevid != -1) {
-		if (heid1==opprevid) return 1;
-		if (heid1==he[heidtoindex[opprevid]].opid) return 1;
+	if (opprevid != -1)
+	{
+		if (heid1 == opprevid)
+			return 1;
+		if (heid1 == he[heidtoindex[opprevid]].opid)
+			return 1;
 	}
 	return -1;
 }
-
 
 int Geometry::not_cross_edge(int heid0, int heid1)
 {
@@ -509,94 +727,149 @@ int Geometry::not_cross_edge(int heid0, int heid1)
 
 int Geometry::next_open_wedge(int heid0)
 {
-	if (Nhe < 21)
+	//cout <<" in next_open_wedge"<<endl;
+
+	if (Nhe < 10)
 	{
 		return -1;
 	}
-	
-	int heindex0 = heidtoindex[heid0]; // this edge
-	int vindex0= vidtoindex[he[heindex0].vout];
-	if (v[vindex0].hein.size() < 4) { return -1; }
-	int opid0=he[heindex0].opid;
-	int heidnext=-1;
-		
-	for (vector<int>::iterator it = v[vindex0].hein.begin(); it != v[vindex0].hein.end(); ++it)
-	{
 
-		if (is_surface(he[heidtoindex[*it]].opid)>0) { heidnext=he[heidtoindex[*it]].opid ;}
+	int heindex_prev = heidtoindex[heid0]; // this edge
+	if (he[heindex_prev].nextid != -1)
+	{
+		return -1;
+	}
+	if (he[heindex_prev].previd != -1)
+	{
+		return -1;
+	}
+	int vindex0 = vidtoindex[he[heindex_prev].vout];
+	//if (v[vindex0].doubleboundary!=-1) { return -1;}  // sould not be double surf
+	if (v[vindex0].hein.size() < 4)
+	{
+		return -1;
+	} //  not the spike vertices
+	int opid_prev = he[heindex_prev].opid;
+	int heidnext = -1;
+	heidnext = he[heindex_prev].nextid_boundary;
+
+	/*for (vector<int>::iterator it = v[vindex0].hein.begin(); it != v[vindex0].hein.end(); ++it)
+	{
+		int opid0 = he[heidtoindex[*it]].opid; // becaus it looks at hein
+		//cout << "in next open wedge, opid is "<< opid0<<endl;
+		if (is_boundary(opid0) > 0 && he[heidtoindex[opid0]].previd == -1)
+		{
+			heidnext = opid0;
+		} // find the one that doesn't have previd !!! there should be just one!
+	}*/
+	//cout << "in next open wedge, heidnext "<< heidnext<<endl;
+	if (heidnext == -1)
+	{
+		cout << " in get_next_wedge! error no nextid_boundary" << endl;
+		exit(-1);
 	}
 
-	if (heidnext==-1) { cout << "wrong geometry in next_open wedge " <<endl; exit(-1); }
-	
-	int heindex1=heidtoindex[heidnext];
-		
-	if (he[heindex0].vout != he[heindex1].vin ) { cout << "Wrong geometry vin vout in next_open wedge " <<endl; exit(-1);}
-	
-	if ( connected(he[heindex0].vin, he[heindex1].vout) < 0)
+	int heindex_next = heidtoindex[heidnext];
+	if (he[heindex_next].nextid != -1)
 	{
-		double cangle = dot(he[heidtoindex[opid0]].hevec, he[heindex1].hevec) / (he[heidtoindex[he[heindex0].opid]].l * he[heindex1].l);
-		if (cangle > 1)
-		{
-			cout << "in next_open_wedge" << endl;
-			exit(-1);
-		}
-		//cout << "cangle" <<cangle<<endl;
-		if (cangle > .2 && not_cross_edge(he[heindex0].id, he[heindex1].id) > 0)
-		{
-			return heidnext;
-			
-		}
-	
+		return -1;
+	} // next should not be bound
+	// temp double check
+	if (he[heindex_prev].vout != he[heindex_next].vin)
+	{
+		cout << "Wrong geometry vin vout in next_open wedge " << endl;
+		exit(-1);
 	}
+
+	double cangle = dot(he[heidtoindex[opid_prev]].hevec, he[heindex_next].hevec) / (he[heidtoindex[opid_prev]].l * he[heindex_next].l);
+	//temp check
+	if (cangle > 1)
+	{
+		cout << "in next_open_wedge" << endl;
+		exit(-1);
+	}
+	//cout << "cangle" <<cangle<<endl;
+	if (cangle > .2 && not_cross_edge(he[heindex_prev].id, he[heindex_next].id) > 0) // do we need not cross wedge?
+	{
+		return heidnext;
+	}
+
 	return -1;
 }
 
 int Geometry::pre_open_wedge(int heid0)
 {
-	if (Nhe < 21)
+	if (Nhe < 10)
 	{
 		return -1;
 	}
-	double *tempv1 = new double[3];
-	double *tempv2 = new double[3];
-	int heindex0 = heidtoindex[heid0]; // this edge
-	int heindex1;
-	int opid0 = he[heindex0].opid;
-	
-	for (vector<int>::iterator it = surfheid.begin(); it != surfheid.end(); ++it)
+
+	int heindex_next = heidtoindex[heid0]; // this edge
+	if (he[heindex_next].previd != -1)
 	{
-		if ((*it != heid0) && (*it != opid0))
-		{ // other surface edges
-			update_half_edge(*it);
-			heindex1 = heidtoindex[*it]; // iterating on surface edges
-			update_half_edge(he[heindex1].opid);
-			if (he[heindex0].vin == he[heindex1].vout && connected(he[heindex0].vout, he[heindex1].vin) < 0)
-			{
-				if (v[vidtoindex[he[heindex0].vin]].hein.size() > 4)
-				{
-					double cangle = dot(he[heindex0].hevec, he[heidtoindex[he[heindex1].opid]].hevec) / (he[heindex0].l * he[heidtoindex[he[heindex1].opid]].l);
-					if (cangle > 1)
-					{
-						cout << "in pre_open_wedge" << endl;
-						exit(-1);
-					}
-					//cout << "cangle" <<cangle<<endl;
-					if (cangle > 0.2 && not_cross_edge(he[heindex1].id, he[heindex0].id) > 0)
-					{
-						return *it;
-						
-					}
-				}
-			}
-		}
+		return -1;
+	}
+	//temp double check
+	if (he[heindex_next].nextid != -1)
+	{
+		return -1;
+	}
+	int vindex0 = vidtoindex[he[heindex_next].vin];
+	//if (v[vindex0].doubleboundary!=-1) { return -1;}  // sould not be double surf
+	if (v[vindex0].hein.size() < 4)
+	{
+		return -1;
+	} //  not the spike vertices
+
+	int heidprev = -1;
+	heidprev = he[heindex_next].previd_boundary;
+	/* 
+	for (vector<int>::iterator it = v[vindex0].hein.begin(); it != v[vindex0].hein.end(); ++it)
+	{
+		//find prev
+		if (is_boundary(*it) > 0 && he[heidtoindex[*it]].nextid == -1)
+		{
+			heidprev = *it;
+		} // find the one that doesn't have previd !!! there should be just one!
+	}
+	*/
+	//cout << "in pre open wedge, heidprev "<< heidprev<<endl;
+	if (heidprev == -1)
+	{
+		cout << " in get_pre_wedge! error no previd_boundary" << endl;
+		exit(-1);
 	}
 
-	delete[] tempv1;
-	delete[] tempv2;
+	int heindex_prev = heidtoindex[heidprev];
+	int opid_prev = he[heindex_prev].opid;
+	if (he[heindex_prev].previd != -1)
+	{
+		return -1;
+	} // prev should not be bound to prev
+	// temp double check
+	if (he[heindex_prev].vout != he[heindex_next].vin)
+	{
+		cout << "Wrong geometry vin vout in next_open wedge " << endl;
+		exit(-1);
+	}
+
+	double cangle = dot(he[heidtoindex[opid_prev]].hevec, he[heindex_next].hevec) / (he[heidtoindex[opid_prev]].l * he[heindex_next].l);
+	//temp check
+	if (cangle > 1)
+	{
+		cout << "in pre_open_wedge" << endl;
+		exit(-1);
+	}
+	//cout << "cangle" <<cangle<<endl;
+	if (cangle > .2 && not_cross_edge(he[heindex_prev].id, he[heindex_next].id) > 0) // do we need not cross wedge?
+	{
+		return heidprev;
+	}
+
 	return -1;
 }
 
-int Geometry::open_wedge(int heid0, int *flag)
+int Geometry::open_wedge(int heid0, int *flag) // ised in add_monomer_dimer
 {
 	//if (Nhe<21) { return -1;}
 	int heindex0 = heidtoindex[heid0]; // this edge
@@ -604,11 +877,12 @@ int Geometry::open_wedge(int heid0, int *flag)
 	int opid0 = he[heindex0].opid;
 	double *tempvec = new double[3];
 	//cout << " in open_wedge _ checking heid0 " << heid0  << " heindex0 is "<< heindex0 <<endl;
-	for (vector<int>::iterator it = surfheid.begin(); it != surfheid.end(); ++it)
+	//int nb=he[heindex0].boundary_index;
+	for (vector<int>::iterator it = boundary.begin(); it != boundary.end(); ++it)
 	{
 		if ((*it != heid0) && (*it != opid0))
-		{								 // other surface edges
-			heindex1 = heidtoindex[*it]; // iterating on surface edges
+		{								 // other boundary edges
+			heindex1 = heidtoindex[*it]; // iterating on boundary edges
 			//cout << " in open_wedge *it is " << *it << endl;
 			//cout << "heindex0 is " << heindex0 << endl;
 			//cout << "heindex1 is " << heindex1 <<endl;
@@ -643,16 +917,16 @@ int Geometry::open_wedge(int heid0, int *flag)
 			}
 		}
 	}
+
 	//cout << " no open wedge returning -1" <<endl;
 	*flag = 0;
 	delete[] tempvec;
 	return -1;
 }
 
-
-int Geometry::next_connected(int vid0, int vid1)
+int Geometry::next_connected_boundary(int vid0, int vid1)
 {
-	for (vector<VTX>::iterator it = v.begin() ; it != v.end(); ++it) {
+	/*for (vector<VTX>::iterator it = v.begin() ; it != v.end(); ++it) {
 		
 		if (vid0!=it->vid && vid1!=it->vid) {
 			if (connected(vid0,it->vid)>0 && connected(vid1,it->vid)>0) {
@@ -660,6 +934,15 @@ int Geometry::next_connected(int vid0, int vid1)
 			}
 		}
 
+	}*/
+
+	for (vector<int>::iterator it = boundary.begin(); it != boundary.end(); ++it)
+	{
+		int heindex0 = heidtoindex[*it];
+		if (he[heidtoindex[he[heindex0].nextid_boundary]].vout == vid0 && he[heidtoindex[he[heindex0].previd_boundary]].vin == vid1)
+			return 1;
+		if (he[heidtoindex[he[heindex0].nextid_boundary]].vout == vid1 && he[heidtoindex[he[heindex0].previd_boundary]].vin == vid0)
+			return 1;
 	}
 	return -1;
 }
@@ -677,10 +960,14 @@ int Geometry::connected(int vid0, int vid1)
 
 int Geometry::connectedH(int heid0, int heid1)
 {
-	if (he[heidtoindex[heid0]].vin==he[heidtoindex[heid1]].vin) return -1;
-	if (he[heidtoindex[heid0]].vout==he[heidtoindex[heid1]].vin) return -1;
-	if (he[heidtoindex[heid0]].vout==he[heidtoindex[heid1]].vout) return -1;
-	if (he[heidtoindex[heid0]].vin==he[heidtoindex[heid1]].vout) return -1;
+	if (he[heidtoindex[heid0]].vin == he[heidtoindex[heid1]].vin)
+		return -1;
+	if (he[heidtoindex[heid0]].vout == he[heidtoindex[heid1]].vin)
+		return -1;
+	if (he[heidtoindex[heid0]].vout == he[heidtoindex[heid1]].vout)
+		return -1;
+	if (he[heidtoindex[heid0]].vin == he[heidtoindex[heid1]].vout)
+		return -1;
 	return 1;
 }
 
@@ -693,11 +980,13 @@ void Geometry::add_vertex(double *xyz)
 	vtxi->co[1] = xyz[1];
 	vtxi->co[2] = xyz[2];
 	//vtxi->hesurfinid=-1;
-	//vtxi->hesurfoutid=-1;
-	vtxi->fusion_vid=-1;
+	vtxi->heboundaryoutid = -1;
+	vtxi->heboundaryoutid2 = -1;
+	//vtxi->fusion_vid=-1;
+	vtxi->doubleboundary = -1;
 	vidtoindex[Nvlast] = Nv;
 	v.push_back(*vtxi);
-		
+
 	Nv++;
 	Nvlast++;
 	delete vtxi;
@@ -715,20 +1004,29 @@ int Geometry::delete_vertex(int vid0)
 	return 1;
 }
 
-
-int Geometry::remove_neigh(int vid0, int removevid) {
-	int vindex0=vidtoindex[vid0];
-	int counter=-1;
-	if (v[vindex0].vneigh.size()==0) { cout << " has no neighbor in remove neigh for " <<vid0 << endl; exit(-1);}
+int Geometry::remove_neigh(int vid0, int removevid)
+{
+	int vindex0 = vidtoindex[vid0];
+	int counter = -1;
+	if (v[vindex0].vneigh.size() == 0)
+	{
+		cout << " has no neighbor in remove neigh for " << vid0 << endl;
+		exit(-1);
+	}
 	for (vector<int>::iterator it = v[vindex0].vneigh.begin(); it != v[vindex0].vneigh.end(); ++it)
 	{
-		if (*it==removevid) { counter=distance(v[vindex0].vneigh.begin(),it);}
+		if (*it == removevid)
+		{
+			counter = distance(v[vindex0].vneigh.begin(), it);
+		}
 	}
-	if (counter!=-1) {
-		v[vindex0].vneigh.erase(v[vindex0].vneigh.begin()+counter);
+	if (counter != -1)
+	{
+		v[vindex0].vneigh.erase(v[vindex0].vneigh.begin() + counter);
 	}
-	else {
-		cout << " not found neigh in remove neigh"<<endl;
+	else
+	{
+		cout << " not found neigh in remove neigh" << endl;
 		exit(-1);
 	}
 	return 1;
@@ -739,9 +1037,9 @@ int Geometry::delete_edge(int heid0)
 	//cout << "IN DELETE EDGE " <<endl;
 
 	int heindex0 = heidtoindex[heid0]; //this edge
-	if (is_surface(heid0) < 0)
+	if (is_boundary(heid0) < 0)
 	{
-		cout << " edge is not on surface, cannot remove" << endl;
+		cout << " edge is not on boundary, cannot remove" << endl;
 		cout << " edge " << heid0 << " next is " << he[heindex0].nextid << " previous is " << he[heindex0].previd << endl;
 		exit(-1);
 		return 0;
@@ -773,9 +1071,7 @@ int Geometry::delete_edge(int heid0)
 	return 1;
 }
 
-
-
-void Geometry::add_half_edge_type(int vin0, int vout0, int etype)
+void Geometry::add_half_edge_type(int vin0, int vout0, int etype, int b_index)
 {
 	if (vin0 >= Nvlast || vout0 >= Nvlast)
 	{
@@ -790,7 +1086,7 @@ void Geometry::add_half_edge_type(int vin0, int vout0, int etype)
 	//HE *newheo;
 	newhei = new HE;
 	he.push_back(*newhei);
-	he_initialize(Nhe, Nhelast, vin0, vout0, etype);
+	he_initialize(Nhe, Nhelast, vin0, vout0, etype, b_index);
 	Nhe++;
 	Nhelast++;
 	delete newhei;
@@ -798,7 +1094,7 @@ void Geometry::add_half_edge_type(int vin0, int vout0, int etype)
 
 int Geometry::add_edge_type(int vin0, int vout0, int etype)
 {
-
+	int b_index = -1;
 	if (vin0 >= Nvlast || vout0 >= Nvlast)
 	{
 		cout << "ERROR in add_edge_type , Nvlast vin0 is" << vin0 << " vout0 is " << vout0 << endl;
@@ -814,7 +1110,7 @@ int Geometry::add_edge_type(int vin0, int vout0, int etype)
 	HE *newheo;
 	newhei = new HE;
 	he.push_back(*newhei);
-	he_initialize(Nhe, Nhelast, vin0, vout0, etype);
+	he_initialize(Nhe, Nhelast, vin0, vout0, etype, b_index);
 	//heidtoindex[Nhelast]=Nhe;
 	Nhe++;
 	Nhelast++;
@@ -843,7 +1139,7 @@ int Geometry::add_edge_type(int vin0, int vout0, int etype)
 	}
 	newheo = new HE;
 	he.push_back(*newheo);
-	he_initialize(Nhe, Nhelast, vout0, vin0, optype);
+	he_initialize(Nhe, Nhelast, vout0, vin0, optype, b_index);
 	//heidtoindex[Nhelast]=Nhe;
 	Nhe++;
 	Nhelast++;
@@ -853,107 +1149,6 @@ int Geometry::add_edge_type(int vin0, int vout0, int etype)
 	delete newhei;
 	delete newheo;
 	return 1;
-}
-
-void Geometry::make_triangle()
-{
-	double xyz0[3];
-	xyz0[0] = 0;
-	xyz0[1] = 0;
-	xyz0[2] = 0;
-
-	for (int i = 0; i < 3; i++)
-	{
-		add_vertex(xyz0);
-		xyz0[0] = cos(i * PI / 3);
-		xyz0[1] = sin(i * PI / 3);
-		xyz0[2] = 0;
-	}
-	for (int i = 0; i < 3; i++)
-	{
-
-		int j = i + 1;
-		if (i == 2)
-		{
-			j = 0;
-		}
-		if (i >= Nvlast || j >= Nvlast)
-		{
-			cout << "ERROR in make triangle" << endl;
-			exit(-1);
-		}
-		add_edge_type(v[i].vid, v[j].vid, 0);
-	}
-
-	//HE *nullHe= new HE;
-	set_prev_next(he[0].id, he[4].id, he[2].id);
-	set_prev_next(he[2].id, he[0].id, he[4].id);
-	set_prev_next(he[4].id, he[2].id, he[0].id);
-}
-
-void Geometry::make_pentamer()
-{
-	double xyz0[3];
-	xyz0[0] = 0;
-	xyz0[1] = 0;
-	xyz0[2] = 0;
-
-	for (int i = 0; i < 3; i++)
-	{
-		add_vertex(xyz0);
-		xyz0[0] = cos(i * PI / 3);
-		xyz0[1] = sin(i * PI / 3);
-		xyz0[2] = 0;
-	}
-	
-	add_half_edge_type(v[0].vid, v[1].vid, 2);
-	add_half_edge_type(v[1].vid, v[0].vid, 1);
-	add_half_edge_type(v[1].vid, v[2].vid, 0);
-	add_half_edge_type(v[2].vid, v[1].vid, 0);
-	add_half_edge_type(v[2].vid, v[0].vid, 1);
-	add_half_edge_type(v[0].vid, v[2].vid, 2);
-	
-
-	cout << endl;
-
-	//}
-
-	//HE *nullHe= new HE;
-	set_prev_next(he[0].id, he[4].id, he[2].id);
-	set_prev_next(he[2].id, he[0].id, he[4].id);
-	set_prev_next(he[4].id, he[2].id, he[0].id);
-	for (vector<HE>::iterator it = he.begin(); it != he.end(); it++)
-	{
-		cout << "updating edge" << it->id << endl;
-		update_half_edge(it->id);
-		cout << it->id << " TYPE " << he[it->id].type << " opid " << it->opid << " OP TYPE " << he[heidtoindex[it->opid]].type << endl;
-		//cout<<
-		//cout <<
-	}
-
-	cout << " HEREH in pentamer 2" << endl;
-	double *vco = new double[3];
-
-	for (int x = 0; x < 3; x++)
-	{
-		update_surface();
-		cout << " after update surface" << endl;
-		new_vertex(Nhe - 1, vco);
-		//cout << vco[0] <<" " << vco[1] << " "<< vco[2] <<endl;
-
-		force_add_dimer(Nhe - 1, vco, 0, 1);
-		update_half_edge(Nhelast - 1);
-		update_half_edge(Nhelast - 2);
-		update_half_edge(Nhelast - 3);
-		update_half_edge(Nhelast - 4);
-	}
-
-	update_surface();
-	force_add_monomer(1, Nhe - 1, 0);
-	update_half_edge(Nhelast - 1);
-	update_half_edge(Nhelast - 2);
-
-	delete[] vco;
 }
 
 int Geometry::opposite_edge(int heid0)
@@ -989,6 +1184,41 @@ void Geometry::set_prev_next(int heid0, int previd0, int nextid0)
 	}
 	he[heindex].nextid = nextid0;
 	he[heindex].previd = previd0;
+
+	he[heindex].boundary_index = -1;
+	he[heindex].nextid_boundary = -1;
+	he[heindex].previd_boundary = -1;
+}
+
+void Geometry::set_prev_next_boundary(int previd0, int nextid0)
+{
+
+	if ((is_boundary(previd0) < 0) || (is_boundary(nextid0) < 0))
+	{
+		cout << " wrong in set prev next boundary" << endl;
+		int previndex0 = heidtoindex[previd0];
+		cout << "he[previndex0].previd" << he[previndex0].previd << " he[previndex0].nextid " << he[previndex0].nextid << endl;
+		int nextindex0 = heidtoindex[nextid0];
+		cout << "he[nextindex0].previd" << he[nextindex0].previd << " he[nextindex0].nextid " << he[nextindex0].nextid << endl;
+		exit(-1);
+	}
+
+	int nextindex = heidtoindex[nextid0];
+	int previndex = heidtoindex[previd0];
+	//cout << "he[heindex].vout" << he[heindex].vout << " he[nextindex].vin " << he[nextindex].vin << " he[heindex].vin " <<  he[heindex].vin  << " he[previndex].vout "  << he[previndex].vout << endl;
+	if ((he[previndex].vout != he[nextindex].vin))
+	{
+		cout << " WRONG VIN VOUT IN SET_PREV_NEXT" << endl;
+		exit(-1);
+	}
+	if ((he[previndex].boundary_index != he[nextindex].boundary_index))
+	{
+		cout << " WRONG boundary index in set prev next boundary" << endl;
+		exit(-1);
+	}
+
+	he[previndex].nextid_boundary = nextid0;
+	he[nextindex].previd_boundary = previd0;
 }
 
 int Geometry::get_prev_next(int heid0, int *previd0, int *nextid0)
@@ -1036,7 +1266,7 @@ int Geometry::get_prev_next(int heid0, int *previd0, int *nextid0)
 	return -1;
 }
 
-int Geometry::add_dimer(int heid0, gsl_rng *r, int et1, int et2)
+double Geometry::add_dimer(int heid0, gsl_rng *r, int et1, int et2 , double *distance_vector)
 { // adds the dimer if it  has no next prev
 	if (heid0 >= Nhelast)
 	{
@@ -1046,24 +1276,43 @@ int Geometry::add_dimer(int heid0, gsl_rng *r, int et1, int et2)
 	double *newv = new double[3];
 	double *tempv1 = new double[3];
 	double *tempv2 = new double[3];
-	int success = 1;
+	
+	
+	double success = 1;
 	int heindex0 = heidtoindex[heid0];
-	//cout << "heindex is" << heindex0<<endl;
-	if (is_surface(heid0) < 0)
+
+	int nextboundary = he[heindex0].nextid_boundary;
+	int prevboundary = he[heindex0].previd_boundary;
+
+	
+	if (is_boundary(heid0) < 0)
 	{
-		cout << " he is not on surface " << endl;
+		cout << " he is not on boundary " << endl;
+		delete[] newv;
+		delete[] tempv1;
+		delete[] tempv2;
 		return -1;
-	} // return 0;}
-	  //else { cout << " add_dimer he is on surface of he with id Nhe is  " << Nhe << " Nv is " << Nv <<endl;  }
+	} 
+	 
 	if (he[heindex0].nextid != -1 || he[heindex0].previd != -1)
 	{
 		cout << "one end ins connected cannot add dimer" << endl;
 		exit(-1);
 	}
-	//cout << "in add_dimer" <<endl;
-	new_vertex(heindex0, tempv1);
-	move_p(tempv1, newv, r);
+	//read boundary_index and update it for heid and added halfedges
+	int bi = he[heindex0].boundary_index;
+
+	//find the eqy=uilibrium point of new dimer XXXX
+	//cout << " in add_dimer" <<endl;
+	new_vertex_edge(heindex0, tempv1, et1);
+	//double d=new_vertex_edge_and_move(heindex0, newv, et1,r);
 	
+	
+	//double d=move_p(xi, tempv1, newv, r);
+	double d=move_p_gaussian(xi,tempv1, newv, r);
+	//subvec(tempv1,newv,distance_vector);
+	//cout << "now move it" <<endl;
+	//double d=move_p_gaussian_axes(heindex0,xi,tempv1, newv, r, distance_vector); //  also return the projections in each direction  for calculation of vp in detailed balance
 
 	if (check_overlap_centerv(newv) < 0)
 	{
@@ -1144,8 +1393,15 @@ int Geometry::add_dimer(int heid0, gsl_rng *r, int et1, int et2)
 	//cout << "he[heidtoindex[he[Nhe-3].opid)].opid " << he[heidtoindex[he[Nhe-3].opid)].opid <<endl;
 	//cout << " set prevoius next (heid0) " << heid0 << he[Nhe-2].id <<he[Nhe-4].id <<endl;
 
-	update_surface();
-	update_neigh_vertex(Nvlast-1);
+	he[heidtoindex[Nhelast - 1]].boundary_index = bi;
+	he[heidtoindex[Nhelast - 3]].boundary_index = bi;
+	set_prev_next_boundary(prevboundary, Nhelast - 1);
+	set_prev_next_boundary(Nhelast - 3, nextboundary);
+	set_prev_next_boundary(Nhelast - 1, Nhelast - 3);
+	//cout << " in add_dimer update boundary " << endl;
+	update_boundary();
+	update_neigh_vertex(Nvlast - 1);
+	//update
 	/*int vindex0=vidtoindex[Nvlast-1];
 	if (v[vindex0].vneigh.size() > 0)
 	{
@@ -1153,8 +1409,8 @@ int Geometry::add_dimer(int heid0, gsl_rng *r, int et1, int et2)
 		{	
 			update_neigh_vertex(*it);
 		}
-	}*/	
-	
+	}*/
+	if (success>0) success=d;
 	//cout << "dimer added in G.add_dimer" <<endl;
 	return success;
 }
@@ -1174,14 +1430,16 @@ int Geometry::force_add_dimer(int heid0, double *newv, int typenext, int typepre
 	//cout << newv[0]<<endl;
 	//exit(-1);
 	cout << "heindex0" << heindex0 << endl;
-	if (is_surface(heid0) < 0)
+	if (is_boundary(heid0) < 0)
 	{
+		delete[] tempv1;
+		delete[] tempv2;
 		return -1;
-	} //cout << " he is not on surface " <<endl; return 0;}
-	
+	} //cout << " he is not on boundary " <<endl; return 0;}
+
 	add_vertex(newv);
 
-	cout << " add_dimer after adding a vertex Nhe is   " << Nhe << " Nv is " << Nv << endl;
+	//cout << " add_dimer after adding a vertex Nhe is   " << Nhe << " Nv is " << Nv << endl;
 	delete[] tempv1;
 	delete[] tempv2;
 	//delete[] tempv;
@@ -1228,7 +1486,7 @@ int Geometry::force_add_dimer(int heid0, double *newv, int typenext, int typepre
 
 	//cout << " set prevoius next (heid0) " << heid0 << he[Nhe-2].id <<he[Nhe-4].id <<endl;
 
-	update_surface();
+	update_boundary();
 	return success;
 }
 
@@ -1249,7 +1507,7 @@ int Geometry::remove_dimer(int heindex0, int heindexnext0)
 void Geometry::make_hexamer()
 {
 	/*make_triangle();
-	update_surface();
+	update_boundary();
     update_normals();
 
 	//for (int i=0; i<5; i++){ // make pentamer
@@ -1257,38 +1515,38 @@ void Geometry::make_hexamer()
 	new_vertex(Nhe-1,vco);
 	 
 	force_add_dimer(Nhe-1,vco,1,1);
-	update_surface();
+	update_boundary();
     update_normals();
 	cout << "1 dimer added" <<endl;
 	new_vertex(Nhe-1,vco);
 	force_add_dimer(Nhe-1,vco,1,0);
-	update_surface();
+	update_boundary();
 	update_normals();
 	cout << "2 dimer added" <<endl;
 	new_vertex(Nhe-1,vco);
 	force_add_dimer(Nhe-1,vco,0,0);
-	update_surface();
+	update_boundary();
 	update_normals();
 	cout << "3 dimer added" <<endl;
 	new_vertex(Nhe-1,vco);
 	force_add_dimer(Nhe-1,vco,1,1);
-	update_surface();
+	update_boundary();
     update_normals();
 	cout << "4 dimer added" <<endl;
 	force_add_monomer(1,Nhe-1,1);
-	update_surface();
+	update_boundary();
     update_normals();
 	delete[] vco;
         //for (int rstep=0; rstep<100; rstep++){
         //    move_vertex(g,r);
-		//    g.update_surface();
+		//    g.update_boundary();
             //dump_lammps_data_file(g, frame++);
         //} 
         //dump_lammps_data_file(g, frame++);
 	*/
 }
 
-void Geometry::he_initialize(int heindex, int heid0, int vin0, int vout0, int etype)
+void Geometry::he_initialize(int heindex, int heid0, int vin0, int vout0, int etype, int b_index)
 {
 	he[heindex].id = heid0;
 	he[heindex].opid = -1;
@@ -1296,7 +1554,12 @@ void Geometry::he_initialize(int heindex, int heid0, int vin0, int vout0, int et
 	he[heindex].vout = vout0;
 	he[heindex].nextid = -1;
 	he[heindex].previd = -1;
-
+	he[heindex].nextid_boundary = -1;
+	he[heindex].previd_boundary = -1;
+	he[heindex].next_fusion_heid = -1;
+	he[heindex].prev_fusion_heid = -1;
+	he[heindex].next_wedge_fusion_heid = -1;
+	he[heindex].prev_wedge_fusion_heid = -1;
 	int vindex0 = vidtoindex[vin0];
 	int vindex1 = vidtoindex[vout0];
 	double *tempv = new double[3];
@@ -1306,10 +1569,10 @@ void Geometry::he_initialize(int heindex, int heid0, int vin0, int vout0, int et
 	he[heindex].hevec[2] = tempv[2];
 	he[heindex].l = norm(tempv);
 	he[heindex].type = etype;
-	//he[heindex].nextangle=0;
+	he[heindex].boundary_index = b_index;
 	delete[] tempv;
 	he[heindex].din = 0;
-	he[heindex].dout = 0;
+	//he[heindex].dout = 0;
 	heidtoindex[heid0] = heindex;
 }
 
@@ -1403,12 +1666,33 @@ void Geometry::update_half_edge(int heid0)
 
 int Geometry::add_monomer(int nextofnewid, int prevofnewid, int et)
 { //nextofnew prevofnew
+
 	int heid0 = prevofnewid;
 	//cout << "in add_monomer" << "heid0 is prevofnewid " << heid0 <<endl;
 	int heid1 = nextofnewid;
+
 	//cout << "in add_monomer" << "heid1 is nextofnewid " << heid1 <<endl;
 	int heprevindex = heidtoindex[heid0]; // this is prev for new edge
 	int henextindex = heidtoindex[heid1]; // this is going to be next of new edge
+
+	//read boundary index and edit it for added halfedges
+	int biprev = he[heprevindex].boundary_index;
+	int binext = he[henextindex].boundary_index;
+	if (biprev != binext)
+	{
+		cout << "boundary index not matching. " << endl;
+		exit(-1);
+	}
+	//read and keep nextid_boundary and previd_boundary
+	int bound_nextid = he[heprevindex].nextid_boundary;
+	int bound_previd = he[henextindex].previd_boundary;
+
+	//double check
+	if ((he[heprevindex].previd != nextofnewid) || (he[henextindex].nextid != prevofnewid))
+	{
+		cout << "wrong chosen half edges for add monomer" << endl;
+		exit(-1);
+	}
 	int newvin = he[heprevindex].vout;
 	int newvout = he[henextindex].vin;
 	double *tempv1 = new double[3];
@@ -1418,7 +1702,7 @@ int Geometry::add_monomer(int nextofnewid, int prevofnewid, int et)
 
 	if (check_overlap_centerh(tempv2) < 0)
 	{
-		cout << "overalp in adding edge monomer! \n \n";
+		//cout << "overalp in adding edge monomer! \n \n";
 		delete[] tempv1;
 		delete[] tempv2;
 		return -1;
@@ -1426,9 +1710,11 @@ int Geometry::add_monomer(int nextofnewid, int prevofnewid, int et)
 
 	if (add_edge_type(newvin, newvout, et) < 0)
 	{
-		cout << "coudnot add the edge " << endl;
+		//cout << "coudnot add the edge " << endl;
+		delete[] tempv1;
+		delete[] tempv2;
 		return -1;
-	};
+	}
 	update_half_edge(Nhelast - 2);
 	update_half_edge(Nhelast - 1);
 	update_half_edge(heid0);
@@ -1436,9 +1722,20 @@ int Geometry::add_monomer(int nextofnewid, int prevofnewid, int et)
 	set_prev_next(heid1, Nhelast - 2, heid0);
 	set_prev_next(heid0, heid1, Nhelast - 2);
 	set_prev_next(Nhelast - 1, -1, -1);
+	he[heprevindex].boundary_index = -1;
+	he[henextindex].boundary_index = -1;
+	he[heidtoindex[Nhelast - 1]].boundary_index = biprev;
+	//cout << "in add_monomer" <<endl;
 
-	update_surface();
-	//delete[] tempv1; delete[] tempv2;
+	set_prev_next_boundary(Nhelast - 1, bound_nextid);
+
+	set_prev_next_boundary(bound_previd, Nhelast - 1);
+
+	//cout << "in g.add_monomer , monomer added"<<endl;
+	update_boundary();
+	update_normals();
+	delete[] tempv1;
+	delete[] tempv2;
 	return 1;
 }
 
@@ -1452,7 +1749,7 @@ int Geometry::force_add_monomer(int nextofnewid, int prevofnewid, int etype)
 	int henextindex = heidtoindex[heid1]; // this is going to be next of new edge
 	int newvin = he[heprevindex].vout;
 	int newvout = he[henextindex].vin;
-		
+
 	if (add_edge_type(newvin, newvout, etype) < 0)
 	{
 		cout << "coudnot add the edge " << endl;
@@ -1465,19 +1762,19 @@ int Geometry::force_add_monomer(int nextofnewid, int prevofnewid, int etype)
 	update_half_edge(heid0);
 	update_half_edge(Nhelast - 2);
 	update_half_edge(Nhelast - 1);
-	//update_surface();
+	//update_boundary();
 	//delete[] tempv1; delete[] tempv2;
 	return 1;
 }
 int Geometry::add_monomer_dimer(int heid0)
 {
 
-	if (is_surface(heid0) < 0)
+	if (is_boundary(heid0) < 0)
 	{
-		cout << " cannot add not on the surface !" << endl;
+		cout << " cannot add not on the boundary !" << endl;
 		exit(-1);
 	}
-	update_surface();
+	update_boundary();
 	int flagprevnext;
 	int xid = open_wedge(heid0, &flagprevnext);
 
@@ -1506,29 +1803,28 @@ int Geometry::add_monomer_dimer(int heid0)
 		//dump_lammps_data_file(g, frame++);
 		//exit(-1);
 	}
-	else
-	{
-		//cout << "add_dimer Nhe is " << Nhe<<endl;
-		//add_dimer(heid0,r);
-	}
+	//else
+	//{
+	//cout << "add_dimer Nhe is " << Nhe<<endl;
+	//add_dimer(heid0,r,3,3);
+	//}
 	return 1;
 }
 
-
-int Geometry::remove_monomer_dimer(int heid0, gsl_rng *r)
+int Geometry::remove_monomer_dimer(int heid0, gsl_rng *r) /* NOT USED */
 {
-	if (!(is_surface(heid0) > 0))
+	/*if (!(is_boundary(heid0) > 0))
 	{
-		cout << "not on surface cannot remove" << endl;
+		cout << "not on boundary cannot remove" << endl;
 		return -1;
 	}
-	int heindex0 = heidtoindex[heid0];				 // index of this edge
-	int heopindex0 = heidtoindex[he[heindex0].opid]; // indexd of opposite edge
-	int nextopid0 = he[heopindex0].nextid;			 // indexd of next of opposite edge
-	int prevopid0 = he[heopindex0].previd;			 // indexd of prev of opposite edge
-	int heid1 = he[heidtoindex[nextopid0]].opid;	 // now back to this side
-	int heid2 = he[heidtoindex[prevopid0]].opid;	 // afetr vertex
-	if (is_surface(heid1) < 0 && is_surface(heid2) < 0 && is_vsurface(he[heidtoindex[nextopid0]].vout) < 0)
+	int heindex0 = heidtoindex[heid0];																		   // index of this edge
+	int heopindex0 = heidtoindex[he[heindex0].opid];														   // indexd of opposite edge
+	int nextopid0 = he[heopindex0].nextid;																	   // indexd of next of opposite edge
+	int prevopid0 = he[heopindex0].previd;																	   // indexd of prev of opposite edge
+	int heid1 = he[heidtoindex[nextopid0]].opid;															   // now back to this side
+	int heid2 = he[heidtoindex[prevopid0]].opid;															   // afetr vertex
+	if (is_boundary(heid1) < 0 && is_boundary(heid2) < 0 && is_vboundary(he[heidtoindex[nextopid0]].vout) < 0) // this prevents dissociation
 	{
 		int x = delete_edge(heid0);
 		if (x < 0)
@@ -1554,14 +1850,10 @@ int Geometry::remove_monomer_dimer(int heid0, gsl_rng *r)
 	else
 	{
 
-		if (is_surface(heid1) > 0)
+		if (is_boundary(heid1) > 0)
 		{
 			//cout << "\n \n TRYING DIMER REMOVAL - with its next" <<endl;
-			/*for (vector<HE>::iterator it =  he.begin() ; it !=  he.end(); it++) {
-                cout << "edge " <<distance( he.begin(),it) <<" id " << it->id << " opid " << it-> opid <<"\t";
-                cout << "       " <<" vin " << vidtoindex[it->vin] << " vout " << vidtoindex[it->vout] <<"\t";
-                cout << "        " << " nextid " << it->nextid << " previd " << it->previd <<endl;
-            }*/
+			
 			int vi = he[heopindex0].vout;
 			//double de=- dimer_energy( he[heidtoindex[heid0)].opid, he[heidtoindex[heid1)].opid);
 			//double de=-( stretch_energy(heidtoindex[heid0))+ bend_energy(heidtoindex[heid0)));
@@ -1588,15 +1880,11 @@ int Geometry::remove_monomer_dimer(int heid0, gsl_rng *r)
 				// double e2 = compute_energy();
 
 				//cout << " de is " << de <<endl;
-				//double crit = exp(-de/ T)/(2*vp);///vp; //* z* K* K);
+				//double crit = exp(-de/ T)/(2*vp);///vp; // z* K* K);
 				//cout << " crit is " << crit << endl;
 				if (true)
 				{ //gsl_rng_uniform(r) < crit) {
-					/*for (vector<HE>::iterator it =  he.begin() ; it !=  he.end(); it++) {
-                        cout << "edge " <<distance( he.begin(),it) <<" id " << it->id << " opid " << it-> opid <<"\t";
-                        cout << "       " <<" vin " << vidtoindex[it->vin] << " vout " << vidtoindex[it->vout] <<"\t";
-                        cout << "        " << " nextid " << it->nextid << " previd " << it->previd <<endl;
-                    }*/
+					
 					//cout << " crit is " << crit << endl;
 					//cout << " DIMER REMOVEd" << endl;
 					return 1;
@@ -1609,7 +1897,7 @@ int Geometry::remove_monomer_dimer(int heid0, gsl_rng *r)
 			}
 		}
 
-		else if (is_surface(heid2) > 0)
+		else if (is_boundary(heid2) > 0)
 		{
 
 			int vi = he[heopindex0].vin;
@@ -1645,11 +1933,7 @@ int Geometry::remove_monomer_dimer(int heid0, gsl_rng *r)
 				{ //gsl_rng_uniform(r) < crit) {
 					//cout << " accepted crit is " << crit << endl;
 
-					/*for (vector<HE>::iterator it =  he.begin() ; it !=  he.end(); it++) {
-                        cout << "edge " <<distance( he.begin(),it) <<" id " << it->id << " opid " << it-> opid <<endl;
-                        cout << "       " <<" vin " << vidtoindex[it->vin] << " vout " << vidtoindex[it->vout] <<endl;
-                        cout << "        " << " nextid " << it->nextid << " previd " << it->previd <<endl;
-                    }*/
+				
 					//cout << " DIMER REMOVED" <<endl;;
 					return 1;
 				}
@@ -1661,31 +1945,11 @@ int Geometry::remove_monomer_dimer(int heid0, gsl_rng *r)
 			}
 		}
 	}
-	//return -1;
+	//return -1;*/
 	return 1;
 }
 
-void Geometry::move_v(double *pi, double *pf, gsl_rng *r)
-{
-	double *tempvec, *fvec;
-	tempvec = new double[3];
-	fvec = new double[3];
-	
-	//random direction
-	randvec(tempvec, r);
-	//cout << " tempvec is " << tempvec[0] << " " <<tempvec[1] << " " <<tempvec[2] <<endl;
-	double tempveclen=norm(tempvec);
-	if (tempveclen>1.001) { cout<< " in move_v veclen > 1 veclen is "<< tempveclen << endl; exit(-1); }
-	//double d= .2* gsl_rng_uniform(r);
-	double d = gsl_rng_uniform(r) * 2.0 / sqrt(epsilon[0]);
-	multvec(tempvec, d, fvec);
-	addvec(fvec, pi, pf);
-
-	delete[] tempvec;
-	delete[] fvec;
-}
-
-void Geometry::move_p(double *pi, double *pf, gsl_rng *r)
+void Geometry::move_v_epsilon(double len_move, double *pi, double *pf, gsl_rng *r)
 {
 	double *tempvec, *fvec;
 	tempvec = new double[3];
@@ -1694,14 +1958,421 @@ void Geometry::move_p(double *pi, double *pf, gsl_rng *r)
 	//random direction
 	randvec(tempvec, r); // random direction with unit length
 	//double sigmav=.2;
-	double d = xi * (gsl_rng_uniform(r)); // length of change between 0 and xi 
+	//double d = pow(xi,(1/3)) * gsl_rng_uniform(r); // length of change between 0 and xi
+	double d = len_move* cbrt(gsl_rng_uniform(r)) * 2.0 / sqrt(epsilon[0]);
 	//double d = xi * gsl_ran_gaussian(r, sigmav);
+	//cout << " len d in move_v_epsilon " << d << endl;
 	multvec(tempvec, d, fvec); // update the vector length
-	addvec(fvec, pi, pf); // apply the position change
+	addvec(fvec, pi, pf);	   // apply the position change
 
 	delete[] tempvec;
 	delete[] fvec;
 }
+
+double Geometry::move_p(double *pi, double *pf, gsl_rng *r)
+{
+	double *x;//tempvec, *fvec;
+	//tempvec = new double[3];
+	x = new double[3];
+
+	//random direction
+	//randvec(tempvec, r); // random direction with unit length
+	//double sigmav=.2;
+	//double x = gsl_rng_uniform(r);
+	//cout << " x is " << x << endl;
+	//cout << " x^1/3 is" << cbrt(x)<<endl<<endl;
+	//double d = len_v * cbrt(x); // length of change between 0 and xi
+	//cout << " len d in move_p " << d << endl;
+	//double d = xi * gsl_ran_gaussian(r, sigmav);
+	//multvec(tempvec, d, fvec); // update the vector length
+
+	//x[0] = l_thermal_sigma* (gsl_rng_uniform(r)-.5);
+	//x[1] = l_thermal_sigma* (gsl_rng_uniform(r)-.5);
+
+	x[0] =  l_thermal_kappa* (gsl_rng_uniform(r)-.5);
+	x[1] =  l_thermal_kappa* (gsl_rng_uniform(r)-.5);
+
+
+	//this is theta
+
+	x[2] =  l_thermal_kappa* (gsl_rng_uniform(r)-.5);
+
+	double d=norm(x);
+
+	addvec(x, pi, pf);	   // apply the position change
+
+	//delete[] tempvec;
+	delete[] x;
+	
+	return d;
+}
+double Geometry::move_p_gaussian(double len_v, double *pi, double *pf, gsl_rng *r)
+{
+	double *x;
+	x = new double[3];
+
+	double sig = gaussian_sigma;
+	//cout << " sig is " <<sig<<endl;
+
+	x[0] = gsl_ran_gaussian(r, sig);
+	x[1] = gsl_ran_gaussian(r, sig);
+	x[2] = gsl_ran_gaussian(r, sig);
+
+	double d = norm(x);
+	addvec(pi, x, pf); // apply the position change
+	delete[] x;
+
+	return d;
+}
+
+//find the projection of the vector in direction of 3 rotating axes
+// use this for gaussian correction
+double Geometry::find_project_dist_axes(int heindex0, double *newv, double *oldv , double *dis_vector_project )
+{
+
+	double *fvecx, *fvecy, *fvecz, *tempvec_dis , *tempvec;
+	fvecx = new double[3];
+	fvecy = new double[3];
+	fvecz = new double[3];
+	tempvec_dis = new double[3];
+	tempvec = new double[3];
+
+	subvec(oldv,newv,tempvec_dis);
+	cout << "tempvec " <<  tempvec_dis[0] <<" "<< tempvec_dis[1] << " "<<tempvec_dis[2]<<endl;
+	//direction of x hevec 
+	multvec(he[heindex0].hevec, 1/norm(he[heindex0].hevec),fvecx);
+	dis_vector_project[0]=dot(tempvec_dis,fvecx);
+
+	//direction of y pi -hecent
+	subvec(he[heindex0].hecent,oldv,tempvec);
+	multvec(tempvec, 1/norm(tempvec),fvecy);
+	dis_vector_project[1]=dot(tempvec_dis,fvecy);
+
+	//derection of z cross(hevec, y)
+	cross(he[heindex0].hevec, fvecy, tempvec); 
+	multvec(tempvec, 1/norm(tempvec),fvecz);
+	dis_vector_project[2]=dot(tempvec_dis,fvecy);
+
+	double d= norm(tempvec_dis);
+	delete[] fvecx;
+	delete[] fvecy;
+	delete[] fvecz;
+	delete[] tempvec_dis;
+	delete[] tempvec;
+	
+
+	return(d);
+}
+
+
+double Geometry::move_p_rotate_axes(int heindex0,double len_v, double *pi, double *pf, gsl_rng *r, double *dis_vector)
+{
+	// this is incomplete XXX
+	double *tempvec,*fvecx, *fvecy, *fvecz; // , *p;
+
+	double *x;
+	x = new double[3];
+
+	x[0] = l_thermal_sigma* (gsl_rng_uniform(r)-.5);
+	x[1] = l_thermal_sigma* (gsl_rng_uniform(r)-.5);
+
+	//this is theta
+
+	x[2] = theta_thermal_kappa* (gsl_rng_uniform(r)-.5);
+
+
+	multvec(x,1,dis_vector);
+	double d = norm(x);
+
+
+	tempvec = new double[3];
+	fvecx = new double[3];
+	fvecy = new double[3];
+	fvecz = new double[3];
+		
+	//direction of x hevec 
+	multvec(he[heindex0].hevec, x[0]/norm(he[heindex0].hevec),fvecx);
+	
+
+	//direction of y pi -hecent
+	subvec(he[heindex0].hecent,pi,tempvec);
+	multvec(tempvec, x[1]/norm(tempvec),fvecy);
+
+	//derection of z cross(hevec, y)
+	cross(he[heindex0].hevec, fvecy, tempvec); 
+	multvec(tempvec, x[2]/norm(tempvec),fvecz);
+
+	// add to hecent
+
+	tempvec[0]=fvecx[0]+fvecy[0];
+	tempvec[1]=fvecx[1]+fvecy[1];
+	tempvec[2]=fvecx[2]+fvecy[2];
+
+	// apply the position change
+	addvec(pi, tempvec, pf); 
+
+	// now rotate it 
+
+	//cout<< "in new_vertex newv is " <<newv[0] <<" "<<newv[1] <<" " <<newv[2] << endl;
+	
+	delete[] tempvec;
+	delete[] fvecx;
+	delete[] fvecy;
+	delete[] fvecz;
+	delete[] x;
+
+	return d;
+
+}
+
+
+
+double Geometry::move_p_gaussian_axes(int heindex0,double len_v, double *pi, double *pf, gsl_rng *r, double *dis_vector)
+{
+
+	double *tempvec,*fvecx, *fvecy, *fvecz; // , *p;
+
+	double *x;
+	x = new double[3];
+
+	//double sig = gaussian_sigma;
+	//cout << " sig is " <<sig<<endl;
+
+	double sig = gaussian_sigma;
+	x[0] = gsl_ran_gaussian(r, sig);
+	x[1] = gsl_ran_gaussian(r, sig);
+
+	x[2] = gsl_ran_gaussian(r, sig);
+
+
+	 // we send this back for claculation of vp
+
+	//for now keep it a box ! XXX
+
+	/*x[0] = l_thermal_sigma* (gsl_rng_uniform(r)-.5);
+	x[1] = l_thermal_sigma* (gsl_rng_uniform(r)-.5);
+	x[2] = l_thermal_kappa* (gsl_rng_uniform(r)-.5);*/
+
+
+	multvec(x,1,dis_vector);
+	double d = norm(x);
+
+
+	tempvec = new double[3];
+	fvecx = new double[3];
+	fvecy = new double[3];
+	fvecz = new double[3];
+		
+	//direction of x hevec 
+	multvec(he[heindex0].hevec, x[0]/norm(he[heindex0].hevec),fvecx);
+	
+
+	//direction of y pi -hecent
+	subvec(he[heindex0].hecent,pi,tempvec);
+	multvec(tempvec, x[1]/norm(tempvec),fvecy);
+
+	//derection of z cross(hevec, y)
+	cross(he[heindex0].hevec, fvecy, tempvec); 
+	multvec(tempvec, x[2]/norm(tempvec),fvecz);
+
+	// add to hecent
+
+	tempvec[0]=fvecx[0]+fvecy[0]+fvecz[0];
+	tempvec[1]=fvecx[1]+fvecy[1]+fvecz[1];
+	tempvec[2]=fvecx[2]+fvecy[2]+fvecz[2];
+
+	// apply the position change
+	addvec(pi, tempvec, pf); 
+	//cout<< "in new_vertex newv is " <<newv[0] <<" "<<newv[1] <<" " <<newv[2] << endl;
+	
+	delete[] tempvec;
+	delete[] fvecx;
+	delete[] fvecy;
+	delete[] fvecz;
+	delete[] x;
+
+	return d;
+
+}
+
+
+
+double Geometry::new_vertex_edge_and_move(int heindex0, double *newv, int etnew,gsl_rng *r)
+{
+	//cout << " in new_vertex_edge_and_move heindex0 is " << heindex0<<endl;
+	double *tempvec, *fvec , *fvecx , *fvecy; 
+
+	tempvec = new double[3];
+	fvec = new double[3];
+	fvecx = new double[3];
+	fvecy = new double[3];
+
+
+	double *x;
+	x = new double[3];
+
+	x[0] = 2.0 * l_thermal_sigma* (gsl_rng_uniform(r)-0.5);
+	x[1] = 2.0 * l_thermal_sigma* (gsl_rng_uniform(r)-0.5);
+
+	//cout << "gsl_rng_uniform(r)-0.5 " << gsl_rng_uniform(r)-0.5 <<endl;
+	//cout << "l_thermal_sigma " << l_thermal_sigma << endl;
+	
+
+	//this is theta
+
+	x[2] = 2.0 * theta_thermal_kappa* (gsl_rng_uniform(r)-0.5);
+
+	//cout << "X " << x[0] << " " << x[1] << " " << x[2] <<endl;
+
+	int heopindex0 = heidtoindex[he[heindex0].opid];
+	//cout << "heopindex0 is  "<< heopindex0 <<endl;
+	get_normal(he[heopindex0].id);
+	int et = he[heindex0].type;
+	
+	
+	//cout <<"heopindex0 " <<heopindex0 <<endl;
+	// find the angle
+
+	/*g.phi0[0] = 1.05;
+    g.phi0[1] = 1.17;
+    g.phi0[2] = .98;
+    g.phi0[3] = 1.05;*/
+	double angle=1.05;
+	if (et==1 && etnew==2) angle=phi0[1]; // 1 -> 2 T3 and T4 (5fold vertex)
+	else if (et==2 && etnew==0 ) angle=phi0[2]; // 2 -> 0 T3 and T4
+	else if (et==0 && etnew==1 ) angle=phi0[2]; // 0 -> 1 T3 and T4
+	else if (et==3 && etnew==1 ) angle=phi0[2]; // 3 -> 1 T3 
+	else if (et==2 && etnew==3 ) angle=phi0[2]; // 2 -> 3 T3 
+
+	// XXX should consider 0 -> 1 ? T3 ?
+	// the rest are considered 60 degrees
+
+	// hevec is x direction to find the vector 
+	// - sign is because of considering this edge and next edge
+	double ll=l0[et];
+
+	multvec(he[heindex0].hevec,(ll*(1+x[0])*(-cos(angle)))/norm(he[heindex0].hevec),fvecx);
+	//cout << " he[heindex0].hevec " << he[heindex0].hevec[0] <<" "<< he[heindex0].hevec[1] << he[heindex0].hevec[2] <<endl;
+	//cout << "ll " << ll <<endl;
+	//cout << "x[0] " << x[0] <<endl;
+	//cout << " -cos(angle) " << -cos(angle) <<endl; 
+	//cout << "ll*(1+x[0])*(-cos(angle)))/norm(he[heindex0].hevec) " << ll*(1+x[0])*(-cos(angle))/norm(he[heindex0].hevec) <<endl;
+	//cout<< " fvecx" << fvecx[0] <<" " << fvecx[1] <<" " << fvecx[2] <<" " << endl;
+	
+	// tempvec is y direction to find the vector
+	cross(he[heopindex0].n, he[heindex0].hevec, tempvec); 
+	
+	//cout<< " tempvec" << tempvec[0] <<" " << tempvec[1] <<" " << tempvec[2] <<" " << endl;
+	//cout<< " he[heopindex0].n" << he[heopindex0].n[0] <<" " << he[heopindex0].n[1] <<" " << he[heopindex0].n[2] <<" " << endl;
+	if (he[heopindex0].n[0]==0 && he[heopindex0].n[1]==0 && he[heopindex0].n[2]==0) exit(-1);
+	multvec(tempvec,ll*sin(angle)*(1+x[1])/norm(tempvec),fvecy);
+	//cout<< " fvecy" << fvecy[0] <<" " << fvecy[1] <<" " << fvecy[2] <<" " << endl;
+
+	addvec(fvecx,fvecy,fvec);
+
+	//cout << "len new edge is " << norm(fvec) <<endl;
+	//exit(-1);
+ 
+	// find the rotate angle
+
+	/*gg.theta0[0] = atof(argv[5]);
+    g.theta0[1] = atof(argv[6]);
+    g.theta0[2] = g.theta0[0];   // CD-CD
+    g.theta0[3] = g.theta0[0];  */
+
+
+	double theta = theta0[0]; // .24 for all angles
+	if (et==1 || et==2) theta=theta0[1];
+	rotatevec(fvec, he[heopindex0].hevec, theta*(1+x[2]), tempvec); 
+	
+	addvec(v[vidtoindex[he[heindex0].vout]].co,tempvec,newv);
+
+	
+	//cout << "theta" << theta <<endl;
+
+	delete[] tempvec;
+	delete[] fvec;
+	delete[] fvecx;
+	delete[] fvecy;
+	delete[] x;
+
+	double d= sqrt(x[0]*x[0]+x[1]*x[1]+x[2]*x[2]*.86*.86);
+	return(d);
+	
+}
+
+
+void Geometry::new_vertex_edge(int heindex0, double *newv, int etnew)
+{
+	
+	double *tempvec, *fvec , *fvecx , *fvecy; 
+
+	tempvec = new double[3];
+	fvec = new double[3];
+	fvecx = new double[3];
+	fvecy = new double[3];
+
+	int heopindex0 = heidtoindex[he[heindex0].opid];
+	get_normal(he[heindex0].id);
+	int et = he[heindex0].type;
+	
+	//cout <<"heopindex0 " <<heopindex0 <<endl;
+	// find the angle
+
+	/*g.phi0[0] = 1.05;
+    g.phi0[1] = 1.17;
+    g.phi0[2] = .98;
+    g.phi0[3] = 1.05;*/
+	double angle=1.05;
+	if (et==1 && etnew==2) angle=phi0[1]; // 1 -> 2 T3 and T4 (5fold vertex)
+	else if (et==2 && etnew==0 ) angle=phi0[2]; // 2 -> 0 T3 and T4
+	else if (et==0 && etnew==1 ) angle=phi0[2]; // 0 -> 1 T3 and T4
+	else if (et==3 && etnew==1 ) angle=phi0[2]; // 3 -> 1 T3 
+	else if (et==2 && etnew==3 ) angle=phi0[2]; // 2 -> 3 T3 
+
+	// XXX should consider 0 -> 1 ? T3 ?
+	// the rest are considered 60 degrees
+
+	// hevec is x direction to find the vector 
+	// - sign is because of considering this edge and next edge
+
+	multvec(he[heindex0].hevec,-cos(angle)*l0[et]/norm(he[heindex0].hevec),fvecx);
+	//cout<< " fvecy" << fvecx[0] <<" " << fvecx[1] <<" " << fvecx[2] <<" " << endl;
+	
+	// tempvec is y direction to find the vector
+	cross(he[heopindex0].n, he[heindex0].hevec, tempvec); 
+	
+	//cout<< " tempvec" << tempvec[0] <<" " << tempvec[1] <<" " << tempvec[2] <<" " << endl;
+	//cout<< " he[heopindex0].n" << he[heopindex0].n[0] <<" " << he[heopindex0].n[1] <<" " << he[heopindex0].n[2] <<" " << endl;
+	if (he[heopindex0].n[0]==0 && he[heopindex0].n[1]==0 && he[heopindex0].n[2]==0) exit(-1);
+	multvec(tempvec,sin(angle)*l0[et]/norm(tempvec),fvecy);
+	//cout<< " fvecy" << fvecy[0] <<" " << fvecy[1] <<" " << fvecy[2] <<" " << endl;
+
+	addvec(fvecx,fvecy,fvec);
+
+	// find the rotate angle
+
+	/*gg.theta0[0] = atof(argv[5]);
+    g.theta0[1] = atof(argv[6]);
+    g.theta0[2] = g.theta0[0];   // CD-CD
+    g.theta0[3] = g.theta0[0];  */
+
+
+	double theta = theta0[0]; // .24 for all angles
+	if (et==1 || et==2) theta=theta0[1];
+	rotatevec(fvec, he[heopindex0].hevec, theta, tempvec); 
+	
+	addvec(v[vidtoindex[he[heindex0].vout]].co,tempvec,newv);
+
+	
+
+	delete[] tempvec;
+	delete[] fvec;
+	delete[] fvecx;
+	delete[] fvecy;
+	
+}
+
 void Geometry::new_vertex(int heindex0, double *newv)
 {
 
@@ -1758,11 +2429,54 @@ void Geometry::new_vertex(int heindex0, double *newv)
 	newv[1] = he[heindex0].hecent[1] + tempvec[1];
 	newv[2] = he[heindex0].hecent[2] + tempvec[2];
 	//addvec(he[heindex0].hecent,tempvec,newv);
-	//cout<< "in new_vertex 555 newv is " <<newv[0] <<" "<<newv[1] <<" " <<newv[2] << endl;
+	//cout<< "in new_vertex newv is " <<newv[0] <<" "<<newv[1] <<" " <<newv[2] << endl;
 	delete[] tempvec;
 	delete[] fvec;
 	//delete[] p;
 }
+
+
+void Geometry::new_vertex_points(int heindex0, int ind ,double *newv)
+{
+
+	double *tempvec,*fvecx, *fvecy, *fvecz; // , *p;
+
+	tempvec = new double[3];
+	fvecx = new double[3];
+	fvecy = new double[3];
+	fvecz = new double[3];
+	
+	int heopindex0 = heidtoindex[he[heindex0].opid];
+	
+	//direction of x hevec 
+	multvec(he[heindex0].hevec, dist_points[ind][0],fvecx);
+	
+
+	//direction of y tempvec
+
+	cross(he[heopindex0].n, he[heindex0].hevec, tempvec); 
+	multvec(tempvec, dist_points[ind][1],fvecy);
+
+	//derection of z n
+	multvec(he[heindex0].n, dist_points[ind][2],fvecz);
+
+	// add to hecent
+
+	tempvec[0]=fvecx[0]+fvecy[0]+fvecz[0];
+	tempvec[1]=fvecx[1]+fvecy[1]+fvecz[1];
+	tempvec[2]=fvecx[2]+fvecy[2]+fvecz[2];
+
+	addvec( tempvec , he[heopindex0].hecent, newv); 
+
+	
+	cout<< "in new_vertex newv is " <<newv[0] <<" "<<newv[1] <<" " <<newv[2] << endl;
+	delete[] tempvec;
+	delete[] fvecx;
+	delete[] fvecy;
+	delete[] fvecz;
+
+}
+
 
 void Geometry::hecenter(int heindex, double *vcenter)
 {
@@ -1795,35 +2509,35 @@ void Geometry::helen(int heindex, double *helen)
 	delete[] tempvec;
 }
 
-
 int Geometry::get_normal(int heid0)
 {
 	int heindex0 = heidtoindex[heid0];
 	//cout << "in get_normal" <<endl;
 	update_half_edge(heid0);
 	//int etype=he[heindex0].type;
-	if (he[heindex0].nextid == -1 && he[heindex0].previd == -1)
+	if (he[heindex0].nextid == -1 || he[heindex0].previd == -1)
 	{
 		he[heindex0].n[0] = 0;
 		he[heindex0].n[1] = 0;
 		he[heindex0].n[2] = 0;
-		//cout << " on surface no normal! " <<endl;
+		//cout << " on boundary no normal! " <<endl;
 		return (-1);
 	}
-	
+
 	double *vec2 = new double[3];
-	if (he[heindex0].nextid != -1) {
+	if (he[heindex0].nextid != -1)
+	{
 		update_half_edge(he[heindex0].nextid);
 		int nextindex0 = heidtoindex[he[heindex0].nextid];
 		cross(he[heindex0].hevec, he[nextindex0].hevec, vec2);
 	}
-	else {
+	else
+	{
 		update_half_edge(he[heindex0].previd);
 		int previndex0 = heidtoindex[he[heindex0].previd];
 		cross(he[previndex0].hevec, he[heindex0].hevec, vec2);
 	}
 	double nm = norm(vec2);
-	
 
 	he[heindex0].n[0] = vec2[0] / nm;
 	he[heindex0].n[1] = vec2[1] / nm;
@@ -1836,7 +2550,43 @@ int Geometry::get_normal(int heid0)
 	return 1;
 }
 
+void Geometry::update_excluder_top_he(int heid)
+{
+	double *vtemp = new double[3];
+	double *vtemp2 = new double[3];
 
+	int heindex0 = heidtoindex[heid];
+	int heindexop = heidtoindex[he[heindex0].opid];
+
+	if (is_boundary(heid) > 0)
+	{
+		multvec(he[heindexop].n, .425, vtemp);
+		addvec(he[heindex0].hecent, vtemp, he[heindex0].hetop);
+	}
+	else if (is_boundary(he[heindex0].opid) > 0)
+	{
+		multvec(he[heindex0].n, .425, vtemp);
+		addvec(he[heindex0].hecent, vtemp, he[heindex0].hetop);
+	}
+	else
+	{
+		addvec(he[heindex0].n, he[heindexop].n, vtemp2); //averaging the two normals
+		multvec(vtemp2, .2125, vtemp);
+		addvec(he[heindex0].hecent, vtemp, he[heindex0].hetop);
+	}
+
+	delete[] vtemp;
+	delete[] vtemp2;
+}
+
+void Geometry::update_excluder_top()
+{
+
+	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
+	{
+		update_excluder_top_he(it->id);
+	}
+}
 
 void Geometry::update_normals()
 {
@@ -1846,6 +2596,7 @@ void Geometry::update_normals()
 		get_normal(it->id); //}
 							//cout << "update normal of edge" << it->id << it->n[0] << " "<< it->n[1] << " " <<it->n[2] <<endl;
 	}
+
 	//for (vector<HE>::iterator it = he.begin() ; it != he.end(); ++it) {
 	//if (it->nextid!=-1 && it->previd!=-1) {
 	//get_normal(it->id); //}
@@ -1854,402 +2605,480 @@ void Geometry::update_normals()
 	//}
 }
 
-/*int Geometry::check_overlap_hesurf(int heidsurf0)
+void Geometry::update_normals_vertex(int vindex0)
 {
-	if (is_surface(heidsurf0)<0) { cout << " not on surface in check overlap surface"<<endl; exit(-1);}
-	if (Nhe <= 6)
-		return 1;
-	double *vtemp = new double[3];
-	////cout<<"check overlap " << endl <<endl;
-
-	//update_half_edge(heidsurf0);
-
-	int heindex0=heidtoindex[heidsurf0];
-	for (vector<int>::iterator ithe = surfheid.begin(); ithe != surfheid.end(); ithe++)
+	for (vector<int>::iterator ithe = v[vindex0].hein.begin(); ithe != v[vindex0].hein.end(); ithe++)
 	{
-		//update_half_edge(*ithe);
-		if (*ithe != heidsurf0)
-		{ //cout << " he id " << it->id<< endl;
-			//cout << "it->id " << it->id <<endl;
-			//cout << "heid0 " << heid0 << endl;
-
-			int heindex1=heidtoindex[*ithe];
-			subvec(he[heindex0].hecent, he[heindex1].hecent, vtemp);
-			//cout <<"it->hecents "<< it->hecent[0] << " " << it->hecent[1] << " " << it->hecent[2] << " " <<endl;
-			//cout << "he[heidtoindex[heid0)].hecent " << he[heidtoindex[heid0)].hecent[0] << " " << he[heidtoindex[heid0)].hecent[1] << " "  << he[heidtoindex[heid0)].hecent[2] << " " <<endl;
-			//cout << " vtemp[0] " << vtemp[0]<< " vtemp[1] " << vtemp[1]<< " vtemp[2] " << vtemp[2] <<endl;
-			//cout << "norm is " <<  norm(vtemp) <<endl;
-			if (norm(vtemp) < l0[0] * .2)
-			{ //cout << " distance between "<< it->id << " and " << heid0 << " is " << norm(vtemp) <<endl;
-				delete[] vtemp;
-				return -1;
-			}
-		}
-	}
-	
-
-	//cout << "no overlap !\n";	make
-
-	delete[] vtemp;
-	return 1;
-}*/
-
-int Geometry::check_overlap_he(int heid0)
-{
-	if (Nhe <= 6)
-		return 1;
-	
-	update_half_edge(heid0);
-
-	int heindex0=heidtoindex[heid0];
-	for (vector<HE>::iterator it = he.begin(); it != he.end(); it++)
-	{
-		update_half_edge(it->id);
-		if (!(it->id == heid0) && !(it->opid == heid0))
-		{ 
-			double temp= veclen(it->hecent, he[heindex0].hecent);
-			//cout <<"it->hecents "<< it->hecent[0] << " " << it->hecent[1] << " " << it->hecent[2] << " " <<endl;
-			//cout << "he[heidtoindex[heid0)].hecent " << he[heidtoindex[heid0)].hecent[0] << " " << he[heidtoindex[heid0)].hecent[1] << " "  << he[heidtoindex[heid0)].hecent[2] << " " <<endl;
-			//cout << " vtemp[0] " << vtemp[0]<< " vtemp[1] " << vtemp[1]<< " vtemp[2] " << vtemp[2] <<endl;
-			//cout << "norm is " <<  norm(vtemp) <<endl;
-			
-			if  (is_same_triangle(it->id,heid0)<0  && temp < l0[0] * .2)
-			{ //cout << " distance between "<< it->id << " and " << heid0 << " is " << norm(vtemp) <<endl;
-				//delete[] vtemp;
-				return -1;
-			}
-
-		}
-	}
-	
-	int vind = vidtoindex[he[heindex0].vout];
-	int vind2 = vidtoindex[he[heindex0].vin];
-	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
-	{
-		if (it->vid != v[vind].vid && it->vid != v[vind2].vid)
+		get_normal(*ithe);
+		int heindex = heidtoindex[*ithe];
+		get_normal(he[heindex].opid);
+		if (he[heindex].previd != -1)
 		{
-			double temp=veclen(it->co, v[vind].co);
-			
-			if (temp < l0[0] * .30)
+			get_normal(he[heindex].previd);
+			get_normal(he[heidtoindex[he[heindex].previd]].opid);
+		}
+		if (he[heindex].nextid != -1)
+		{
+			get_normal(he[heindex].nextid);
+			get_normal(he[heidtoindex[he[heindex].nextid]].opid);
+		}
+
+		if (is_boundary(he[heindex].opid) > 0)
+		{
+			int opindex = heidtoindex[he[heindex].opid];
+			if (he[opindex].previd != -1)
 			{
-				
-				return -1;
+				get_normal(he[opindex].previd);
+				get_normal(he[heidtoindex[he[opindex].previd]].opid);
+			}
+			if (he[opindex].nextid != -1)
+			{
+				get_normal(he[opindex].nextid);
+				get_normal(he[heidtoindex[he[opindex].nextid]].opid);
 			}
 		}
 	}
-
-	
-	return 1;
 }
 
-int Geometry::check_inside_overlap(int heid0){
-	if (Nhe <= 240)
+void Geometry::update_geometry_vertex(int vindex0)
+{
+	//cout << "in update geometry vertex vindex0 " <<vindex0 <<endl;
+	for (vector<int>::iterator ithe = v[vindex0].hein.begin(); ithe != v[vindex0].hein.end(); ithe++)
+	{
+
+		int heindex = heidtoindex[*ithe];
+
+		update_half_edge(*ithe);
+		update_half_edge(he[heindex].opid);
+		if (he[heindex].previd != -1)
+		{
+			update_half_edge(he[heindex].previd);
+			update_half_edge(he[heidtoindex[he[heindex].previd]].opid);
+		}
+
+		if (he[heindex].nextid != -1)
+		{
+			update_half_edge(he[heindex].nextid);
+			update_half_edge(he[heidtoindex[he[heindex].nextid]].opid);
+		}
+
+		if (is_boundary(he[heindex].opid) > 0)
+		{
+			int opindex = heidtoindex[he[heindex].opid];
+			if (he[opindex].previd != -1)
+			{
+				update_half_edge(he[opindex].previd);
+				update_half_edge(he[heidtoindex[he[opindex].previd]].opid);
+			}
+			if (he[opindex].nextid != -1)
+			{
+				update_half_edge(he[opindex].nextid);
+				update_half_edge(he[heidtoindex[he[opindex].nextid]].opid);
+			}
+		}
+	}
+}
+
+void Geometry::update_excluder_top_vertex(int vindex0)
+{
+
+	for (vector<int>::iterator ithe = v[vindex0].hein.begin(); ithe != v[vindex0].hein.end(); ithe++)
+	{
+		update_excluder_top_he(*ithe);
+	}
+}
+
+int Geometry::check_inside_overlap(int heid0)
+{
+	if (Nhe <= 180)
 		return 1;
-	int heindex0=heidtoindex[heid0];
-	int vi1=he[heindex0].vin;
-	int vi2=he[heindex0].vout;
-	int opindex=heidtoindex[he[heindex0].opid];
-	int nextopid=he[opindex].nextid;
-	int vi3=he[heidtoindex[nextopid]].vout;
+	int heindex0 = heidtoindex[heid0];
+	int opindex = heidtoindex[he[heindex0].opid];
+	int vi1 = he[opindex].vin;
+	int vi2 = he[opindex].vout;
+	int nextopid = he[opindex].nextid;
+	int vi3 = he[heidtoindex[nextopid]].vout;
+	if ((vi3 == vi1) || (vi3 == vi2))
+	{
+		cout << " wrong in inside !" << endl;
+		exit(-1);
+	}
 	double xyz0[3];
-	
-	double XCM=0;
-	double YCM=0;
-	double ZCM=0;
+
+	double XCM = 0;
+	double YCM = 0;
+	double ZCM = 0;
 	// find CM
-	/*for (vector<VTX>::iterator it = g.v.begin(); it != g.v.end(); ++it)
+	/*for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
 	{    
 		XCM +=it->co[0];
 		YCM +=it->co[1];
 		ZCM +=it->co[2];
 
 	}*/
-	
-    xyz0[0] = XCM/Nv;
-    xyz0[1] = YCM/Nv;
-    xyz0[2] = ZCM/Nv;
 
+	xyz0[0] = XCM / Nv;
+	xyz0[1] = YCM / Nv;
+	xyz0[2] = ZCM / Nv;
+	//int nooverlap=0;
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); it++)
 	{
-		if (!(it->id == heid0) && !(it->opid == heid0))
-		{ 
 
-			int vj1=it->vin;
-			int vj2=it->vout;
-			
+		if ((it->id != heid0) && (it->opid != heid0))
+		{
+			//cout << "checkoverlap "<< it->id << " and " << heid0 <<endl;
+			int vj1 = it->vin;
+			int vj2 = it->vout;
 
+			if (vi1 != vj1 && vi1 != vj2 && vi2 != vj1 && vi2 != vj2 && vi3 != vj1 && vi3 != vj2)
+			{
 
-			if (vi1!=vj1 && vi1!=vj2 && vi2!=vj1 && vi2==vj2 && vi3!=vj1 && vi3!=vj2) {
-	
-				if (tri_tri_overlap_test_3d(v[vidtoindex[vi1]].co,v[vidtoindex[vi2]].co ,v[vidtoindex[vi3]].co,
-					v[vidtoindex[vj1]].co,v[vidtoindex[vj2]].co ,xyz0)>0)
-					{
-						return -1;
-					}
+				if (tri_tri_overlap_test_3d(v[vidtoindex[vi1]].co, v[vidtoindex[vi2]].co, v[vidtoindex[vi3]].co,
+											v[vidtoindex[vj1]].co, v[vidtoindex[vj2]].co, xyz0) > 0)
+				{
+					return -1;
+				}
 
+				// double check ovelap ?? TEMP 1022
+
+				int tempnextid = it->nextid;
+				if (tempnextid == -1)
+				{
+					tempnextid = he[heidtoindex[it->opid]].nextid;
+				}
+				if (tempnextid == -1)
+				{
+					cout << " wrong geometry! inside overlap" << endl;
+				}
+				if (tri_tri_overlap_test_3d(v[vidtoindex[vi1]].co, v[vidtoindex[vi2]].co, v[vidtoindex[vi3]].co,
+											it->hecent, he[heidtoindex[tempnextid]].hecent, xyz0) > 0)
+				{
+					return -1;
+				}
+				//else
+				//{
+				//	nooverlap++;
+				//}
 			}
+			//else{
+			//	cout << "vi1 " << vi1 <<" vi2 " << vi2  <<" vi3 " << vi3 << " vj1 " << vj1<< " vj2 " << vj2<< endl;
+			//}
 		}
 	}
 
-	return 1;	
-
+	//cout << "nooverlapInsideTest " << nooverlap << " - Nhe " << Nhe << " -- " <<endl;
+	return 1;
 }
 
-int Geometry::do_intersect(int heid1, int heid2){
-	if (is_surface(heid1)>0 || is_surface(heid2)>0){
+int Geometry::do_intersect(int heid1, int heid2)
+{
+	if (is_boundary(heid1) > 0 || is_boundary(heid2) > 0)
+	{
 		return 0;
-	}	
+	}
 	//int n_vertices_shared=shared_vertices( heid1,  heid2);
 	//if (n_vertices_shared==0){
-	int vi1=he[heidtoindex[heid1]].vin;
-	int vi2=he[heidtoindex[heid1]].vout;
-	int nextid1=he[heidtoindex[heid1]].nextid;
-	int vi3=he[heidtoindex[nextid1]].vout;
-	int vj1=he[heidtoindex[heid2]].vin;
-	int vj2=he[heidtoindex[heid2]].vout;
-	int nextid2=he[heidtoindex[heid2]].nextid;
-	int vj3=he[heidtoindex[nextid2]].vout;
+	int vi1 = he[heidtoindex[heid1]].vin;
+	int vi2 = he[heidtoindex[heid1]].vout;
+	int nextid1 = he[heidtoindex[heid1]].nextid;
+	int vi3 = he[heidtoindex[nextid1]].vout;
+	int vj1 = he[heidtoindex[heid2]].vin;
+	int vj2 = he[heidtoindex[heid2]].vout;
+	int nextid2 = he[heidtoindex[heid2]].nextid;
+	int vj3 = he[heidtoindex[nextid2]].vout;
 
+	if (vi1 == vj1 || vi1 == vj2 || vi1 == vj3)
+	{
+		return 0;
+	}
+	if (vi2 == vj1 || vi2 == vj2 || vi2 == vj3)
+	{
+		return 0;
+	}
+	if (vi3 == vj1 || vi3 == vj2 || vi3 == vj3)
+	{
+		return 0;
+	}
 
-	if (vi1==vj1 || vi1==vj2 || vi1==vj3) { return 0;}
-	if (vi2==vj1 || vi2==vj2 || vi2==vj3) { return 0;}
-	if (vi3==vj1 || vi3==vj2 || vi3==vj3) { return 0;}
+	int overlap = 0;
 
-	return tri_tri_overlap_test_3d(v[vidtoindex[vi1]].co,v[vidtoindex[vi2]].co ,v[vidtoindex[vi3]].co, 
-			v[vidtoindex[vj1]].co,v[vidtoindex[vj2]].co ,v[vidtoindex[vj3]].co);
-	
-	
+	overlap = tri_tri_overlap_test_3d(v[vidtoindex[vi1]].co, v[vidtoindex[vi2]].co, v[vidtoindex[vi3]].co,
+									  v[vidtoindex[vj1]].co, v[vidtoindex[vj2]].co, v[vidtoindex[vj3]].co);
+
+	if (overlap == 1)
+		return overlap;
+
+	/* check intersect with top triangle */
+
+	overlap = tri_tri_overlap_test_3d(v[vidtoindex[vi1]].co, v[vidtoindex[vi2]].co, he[heidtoindex[heid1]].hetop,
+									  v[vidtoindex[vj1]].co, v[vidtoindex[vj2]].co, he[heidtoindex[heid2]].hetop);
+
+	if (overlap == 1)
+		return overlap;
+
+	overlap = tri_tri_overlap_test_3d(v[vidtoindex[vi1]].co, v[vidtoindex[vi2]].co, v[vidtoindex[vi3]].co,
+									  v[vidtoindex[vj1]].co, v[vidtoindex[vj2]].co, he[heidtoindex[heid2]].hetop);
+
+	if (overlap == 1)
+		return overlap;
+
+	overlap = tri_tri_overlap_test_3d(v[vidtoindex[vi1]].co, v[vidtoindex[vi2]].co, he[heidtoindex[heid1]].hetop,
+									  v[vidtoindex[vj1]].co, v[vidtoindex[vj2]].co, v[vidtoindex[vj3]].co);
+
+	return overlap;
+}
+
+int Geometry::find_overlap_all()
+{
+	for (vector<VTX>::iterator it = v.begin(); it != v.end(); it++)
+	{
+		check_overlap_g(it->vid);
+	}
 	return 0;
 }
 
-int Geometry::find_overlap_g(int vid0 ) {
-	if (Nhe<22) { return 1;}
-	//cout << "in _check_overlap_g" <<endl;
-	int vindex0=vidtoindex[vid0];   
-	double mindis=.1;
-	for (vector<int>::iterator itv = v[vindex0].vneigh.begin(); itv != v[vindex0].vneigh.end(); itv++)
-	{	
-		//cout<< " "
-		int vindex1=vidtoindex[*itv];  //neighbor v
-		if (vindex1!=-1){
-			//if (veclen(v[vindex0].co,v[vindex1].co )<.1) { return -1;} // check vertex vertx overlap
-			
-			//if (is_vsurface(*itv)>0 && is_vsurface(vid0)>0 ) {mindis=.1; }
-			//else { mindis=.2;}
-			if (veclen(v[vindex1].co, v[vindex0].co)< l0[0] * mindis) { return -1; }
-		
-
-			for (vector<int>::iterator itneigh = v[vindex1].hein.begin(); itneigh != v[vindex1].hein.end(); itneigh++) //neigbor vertex hein s
-			{
-				int heid1=*itneigh;
-				
-				if (is_surface(heid1)>0){ heid1=he[heidtoindex[heid1]].opid;}
-				int heindex1=heidtoindex[heid1];
-				for (vector<int>::iterator it = v[vindex0].hein.begin(); it != v[vindex0].hein.end(); it++) //this vertex hein s
-				{
-					int heid0=*it;
-					int cH=connectedH(heid0,heid1);
-					int cvin=connected(vid0,he[heid0].vin);
-					int cvout=connected(vid0,he[heid0].vout);
-					if (cH==0 && cvin==0 && cvout==0 && heid0!=he[heindex1].id && heid0!=he[heindex1].opid){
-						if (is_surface(heid1)>0){ heid0=he[heidtoindex[heid1]].opid;}
-						int heindex0=heidtoindex[heid0];
-						if (veclen(v[vindex0].co,he[heindex1].hecent )<l0[0] *.4) { cout << "In find_overlap overlap heindex1 vindex0 " << heindex1 <<" " << vindex0 <<endl; exit(-1);}
-						if (veclen(v[vindex1].co,he[heindex0].hecent )<l0[0] *.4) { cout << "In find_overlap overlap heindex0 vindex1 " << heindex0 <<" " << vindex1 <<endl; exit(-1);}
-						
-						if (veclen(he[heindex0].hecent,he[heindex1].hecent)<l0[0] *.4) {  cout << "In find_overlap overlap heindex0 heindex1 " << heindex0 <<" " << heindex1 <<endl; exit(-1);}
-						if (do_intersect(heid0,heid1)>0) {cout << "In find_overlap overlap triangles of  " << heindex0 <<" " << heindex1 <<endl; exit(-1);}
-					}
-				}
-
-			}
-
-		}
-		
-	}
-	return 1;
-}
-
-
-int Geometry::check_overlap_g(int vid0 ) {
-	if (Nhe<22) { return 1;}
-	//cout << "in _check_overlap_g" <<endl;
-	int vindex0=vidtoindex[vid0];   
-	double mindis=.1;
-	for (vector<int>::iterator itv = v[vindex0].vneigh.begin(); itv != v[vindex0].vneigh.end(); itv++) 
-	{	
-		//cout<< " "
-		int vindex1=vidtoindex[*itv];  //neighbor v
-		if (vindex1!=-1){
-			//if (veclen(v[vindex0].co,v[vindex1].co )<.1) { return -1;} // check vertex vertx overlap
-			
-			//if (is_vsurface(*itv)>0 && is_vsurface(vid0)>0 ) {mindis=.1; }
-			//else { mindis=.2;}
-			if (veclen(v[vindex1].co, v[vindex0].co)< l0[0] * mindis) { return -1; }
-		
-
-			for (vector<int>::iterator itneigh = v[vindex1].hein.begin(); itneigh != v[vindex1].hein.end(); itneigh++) //neigbor vertex hein s
-			{
-				int heid1=*itneigh;
-				
-				//if (is_surface(heid1)>0){ heid1=he[heidtoindex[heid1]].opid;} //why?
-				int heindex1=heidtoindex[heid1];
-				for (vector<int>::iterator it = v[vindex0].hein.begin(); it != v[vindex0].hein.end(); it++) //this vertex hein s
-				{
-					int heid0=*it;
-					if (heid0!=he[heindex1].id && heid0!=he[heindex1].opid){
-						//if (is_surface(heid0)>0){ heid0=he[heidtoindex[heid1]].opid;} //why?
-						int heindex0=heidtoindex[heid0];
-						if (veclen(v[vindex0].co,he[heindex1].hecent )<l0[0] *.2) { return -1;} // hecent -vertex overlap
-						if (veclen(v[vindex1].co,he[heindex0].hecent )<l0[0] *.2) { return -1;} // hecent -vertex overlap
-						float mindishe=.2;
-						if (((is_surface(heid1)>0) || (is_surface(he[heidtoindex[heid1]].opid)>0) ) && ((is_surface(heid0)>0) || (is_surface(he[heidtoindex[heid0]].opid)>0))  && connectedH(heid1,heid0)>0){ mindishe=.25;}
-						if (veclen(he[heindex0].hecent,he[heindex1].hecent)<l0[0] *mindishe) { return -1;} // hecent - hecent overlap
-						if (do_intersect(heid0,heid1)>0) return -1;
-					}
-					
-				}
-
-			}
-
-		}
-		
-	}
-	return 1;
-}
-
-
-/*int Geometry::check_overlap_vsurf(int vid0){
-	if (Nhe <= 6)
+int Geometry::find_overlap_g(int vid0)
+{
+	if (Nhe < 22)
+	{
 		return 1;
-	//double *vtemp = new double[3];
-	//cout <<"check overlap " << endl <<endl;
-	for (vector<HE>::iterator it = he.begin(); it != he.end(); it++)
-	{
-		//cout << " he id " << it->id<< endl;
-		if ((it->vin!=vid0 && it->vout!=vid0)){ // prevent self check
-			double mindis=.1;
-			if (is_surface(it->id)>0 || is_surface(he[heidtoindex[it->id]].opid)>0 ) mindis=.25;
-			
-			subvec(it->hecent, v[vidtoindex[vid0]].co, vtemp);
-			//cout << " vtemp[0] " << vtemp[0]<< " vtemp[1] " << vtemp[1]<< " vtemp[2] " << vtemp[2] <<endl;
-			//cout << "norm is " <<  norm(vtemp) <<endl;
-			if (norm(vtemp)>0 &&  norm(vtemp) < l0[0] * mindis)
-			{ //cout << "OVERLAP HE HE"<<endl;
-				delete[] vtemp;
-				return -1;
-			}
-		}	
 	}
-	for (vector<VTX>::iterator it = v.begin(); it != v.end(); it++)
+	//cout << "in _find_overlap_g" <<endl;
+	int vindex0 = vidtoindex[vid0];
+	double mindis = .2;
+	for (vector<int>::iterator itv = v[vindex0].vneigh.begin(); itv != v[vindex0].vneigh.end(); itv++)
 	{
-		if (!(it->vid==vid0)){ // prevent self check
-			double mindis=.3;
-			if (is_vsurface(it->vid)>0  ) mindis=.1;
-			subvec(it->co, v[vidtoindex[vid0]].co, vtemp);
-			//cout << " vvvv " << it->vid<< "vtemp[0] " << vtemp[0]<< " vtemp[1] " << vtemp[1]<< " vtemp[2] " << vtemp[2] <<endl;
-			//cout << "vvvv " << it->vid<< " norm is " <<  norm(vtemp) <<endl;
-			if (norm(vtemp)>0.0 && norm(vtemp) < l0[0] * mindis)
-			{ //cout << "OVERLAP HE VERTEX"<<endl;
-				delete[] vtemp;
-				return -1;
+
+		int vindex1 = vidtoindex[*itv]; //neighbor v
+		if (vindex1 != -1)
+		{
+			//if (veclen(v[vindex0].co,v[vindex1].co )<.1) { return -1;} // check vertex vertx overlap
+
+			//if (is_vboundary(*itv)>0 && is_vboundary(vid0)>0 ) {mindis=.1; }
+			//else { mindis=.2;}
+			if (veclen(v[vindex1].co, v[vindex0].co) < l0[0] * mindis)
+			{
+				cout << "In find_overlap overlap vindex0 vindex1 " << vindex0 << " " << vindex1 << endl;
+				exit(-1);
+			}
+
+			for (vector<int>::iterator itneigh = v[vindex1].hein.begin(); itneigh != v[vindex1].hein.end(); itneigh++) //neigbor vertex hein s
+			{
+				int heid1 = *itneigh;
+
+				if (is_boundary(heid1) > 0)
+				{
+					heid1 = he[heidtoindex[heid1]].opid;
+				}
+				int heindex1 = heidtoindex[heid1];
+				for (vector<int>::iterator it = v[vindex0].hein.begin(); it != v[vindex0].hein.end(); it++) //this vertex hein s
+				{
+					int heid0 = *it;
+					int cH = connectedH(heid0, heid1);
+					int cvin = connected(vid0, he[heid0].vin);
+					int cvout = connected(vid0, he[heid0].vout);
+					if (cH == 0 && cvin == 0 && cvout == 0 && heid0 != he[heindex1].id && heid0 != he[heindex1].opid)
+					{
+						if (is_boundary(heid1) > 0)
+						{
+							heid0 = he[heidtoindex[heid1]].opid;
+						}
+						int heindex0 = heidtoindex[heid0];
+						if (veclen(v[vindex0].co, he[heindex1].hecent) < l0[0] * .2)
+						{
+							cout << "In find_overlap overlap heindex1 vindex0 " << heindex1 << " " << vindex0 << endl;
+							exit(-1);
+						}
+						if (veclen(v[vindex1].co, he[heindex0].hecent) < l0[0] * .2)
+						{
+							cout << "In find_overlap overlap heindex0 vindex1 " << heindex0 << " " << vindex1 << endl;
+							exit(-1);
+						}
+
+						if (veclen(he[heindex0].hecent, he[heindex1].hecent) < l0[0] * .2)
+						{
+							cout << "In find_overlap overlap heindex0 heindex1 " << heindex0 << " " << heindex1 << endl;
+							exit(-1);
+						}
+						if (do_intersect(heid0, heid1) > 0)
+						{
+							cout << "In find_overlap overlap triangles of  " << heindex0 << " " << heindex1 << endl;
+							exit(-1);
+						}
+					}
+				}
 			}
 		}
-	}		
-
-	//delete[] vtemp;
-
-	//if (check_overlap_centerv(v[vidtoindex[vid0]].co)<0) {
-	//	return -1;
-	//}
+	}
 	return 1;
-}*/
+}
 
+int Geometry::check_overlap_g(int vid0)
+{
+	if (Nhe < 22)
+	{
+		return 1;
+	}
+	//cout << "in _check_overlap_g" <<endl;
+	int vindex0 = vidtoindex[vid0];
+	double mindis = .2;
 
+	//check overlap with neighbors
+	for (vector<int>::iterator itv = v[vindex0].vneigh.begin(); itv != v[vindex0].vneigh.end(); itv++)
+	{
+		//cout<< " "
+		int vindex1 = vidtoindex[*itv]; //neighbor v
+		
+		if (vindex1==-1) {
+			
+			cout << "in checkoverlap wrong neigh updating neigh!"<<endl;
+			//exit(-1);
+			//update_index();
+
+			update_neigh_vertex(vid0);
+			update_neigh_vertex_and_neigh(vid0);
+			//update_index();
+			//update_neigh();
+			break;
+			//update_neigh_vertex_and_neigh(*itv);
+		}
+	}
+	for (vector<int>::iterator itv = v[vindex0].vneigh.begin(); itv != v[vindex0].vneigh.end(); itv++)
+	{
+		//cout<< " "
+		int vindex1 = vidtoindex[*itv]; //neighbor v
+		
+		if (vindex1==-1) {
+			
+			cout << "in checkoverlap wrong neigh !"<<endl;
+			exit(-1);
+			
+		}
+		else
+		{
+			//if (veclen(v[vindex0].co,v[vindex1].co )<.1) { return -1;} // check vertex vertx overlap
+
+			//if (is_vboundary(*itv)>0 && is_vboundary(vid0)>0 ) {mindis=.1; }
+			//else { mindis=.2;}
+			if (veclen(v[vindex1].co, v[vindex0].co) < l0[0] * mindis) // vertex vertex overlap
+			{
+				return -1;
+			}
+
+			for (vector<int>::iterator itneigh = v[vindex1].hein.begin(); itneigh != v[vindex1].hein.end(); itneigh++) //neigbor vertex hein s
+			{
+				int heid1 = *itneigh;
+
+				//if (is_boundary(heid1)>0){ heid1=he[heidtoindex[heid1]].opid;} //why?
+				int heindex1 = heidtoindex[heid1];
+				/* 10/29 add spike ecluded volume */
+				for (vector<int>::iterator it = v[vindex0].hein.begin(); it != v[vindex0].hein.end(); it++) //this vertex hein s
+				{
+					int heid0 = *it;
+					if (heid0 != he[heindex1].id && heid0 != he[heindex1].opid)
+					{
+						//if (is_boundary(heid0)>0){ heid0=he[heidtoindex[heid1]].opid;} //why?
+						int heindex0 = heidtoindex[heid0];
+
+						if (veclen(v[vindex0].co, he[heindex1].hetop) < l0[0] * .2) 
+						{
+							return -1;
+						} // hecent -vertex overlap
+						if (veclen(v[vindex1].co, he[heindex0].hetop) < l0[0] * .2)
+						{
+							return -1;
+						} // hecent -vertex overlap
+
+						if (veclen(v[vindex0].co, he[heindex1].hecent) < l0[0] * .2)
+						{
+							return -1;
+						} // hecent -vertex overlap
+						if (veclen(v[vindex1].co, he[heindex0].hecent) < l0[0] * .2)
+						{
+							return -1;
+						} // hecent -vertex overlap
+						float mindishe = .2;
+						//if (((is_boundary(heid1)>0) || (is_boundary(he[heidtoindex[heid1]].opid)>0) ) && ((is_boundary(heid0)>0) || (is_boundary(he[heidtoindex[heid0]].opid)>0))  && connectedH(heid1,heid0)>0){ mindishe=.25;}
+						if (veclen(he[heindex0].hecent, he[heindex1].hecent) < l0[0] * mindishe)
+						{
+							return -1;
+						} // hecent - hecent overlap
+						if (veclen(he[heindex0].hetop, he[heindex1].hecent) < l0[0] * .2)
+						{
+							return -1;
+						} // hetop - hecent overlap
+						if (veclen(he[heindex0].hecent, he[heindex1].hetop) < l0[0] * .2)
+						{
+							return -1;
+						} // hecent - hetop overlap
+
+						if (do_intersect(heid0, heid1) > 0)
+							return -1;
+						
+					}
+				}
+			}
+		}
+		
+	}
+	return 1;
+}
 
 int Geometry::check_overlap_centerv(double *newv) /* checks this v point with all other hecenters and vertices*/
-{ 
+{
 	if (Nhe <= 6)
 		return 1;
-	
+
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); it++)
 	{
-		double mindisvh=.2;
-		if (veclen(it->hecent, newv) < l0[0] * mindisvh)	{ return -1;}
+		double mindisvh = .2;
+		if (veclen(it->hecent, newv) < l0[0] * mindisvh)
+		{
+			return -1;
+		}
+		if (veclen(it->hetop, newv) < l0[0] * mindisvh)
+		{
+			return -1;
+		}
 	}
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); it++)
 	{
-		double mindis=.1;
-		if (veclen(it->co, newv)< l0[0] * mindis)	{ return -1;}
+		double mindis = .2;
+		if (veclen(it->co, newv) < l0[0] * mindis)
+		{
+			return -1;
+		}
 	}
 
 	return 1;
 }
 
 int Geometry::check_overlap_centerh(double *newcenter) /* checks this he center point with all other hecenters*/
-{ 
-	if (Nhe <= 6)	return 1;
-	
-	for (vector<HE>::iterator it = he.begin(); it != he.end(); it++)
-	{
-		double mindis=.2;
-		if (is_surface(it->id)>0) mindis=.25;
-		if (veclen(it->hecent ,newcenter)< l0[0] * mindis) 	{ return -1;}
-
-		double mindisvh=.2;
-		if (veclen(v[vidtoindex[it->vin]].co,newcenter ) < l0[0] * mindisvh) { return -1;}
-
-	}
-	
-	return 1;
-}
-
-/*int Geometry::check_overlap_vtx(int vid0)
 {
 	if (Nhe <= 6)
 		return 1;
-	double *vtemp = new double[3];
-	//cout <<"check overlap " << endl <<endl;
+
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); it++)
 	{
-		//if (!(it->id==heid0) && !(it->opid==heid0)) {//cout << " he id " << it->id<< endl;
-		//cout << "it->id " << it->id <<endl;
-		//cout << "heid0 " << heid0 << endl;
-		subvec(it->hecent, v[vidtoindex[vid0]].co, vtemp);
-		//cout <<"it->hecents "<< it->hecent[0] << " " << it->hecent[1] << " " << it->hecent[2] << " " <<endl;
-		//cout << "he[heidtoindex[heid0)].hecent " << he[heidtoindex[heid0)].hecent[0] << " " << he[heidtoindex[heid0)].hecent[1] << " "  << he[heidtoindex[heid0)].hecent[2] << " " <<endl;
-		//cout << " vtemp[0] " << vtemp[0]<< " vtemp[1] " << vtemp[1]<< " vtemp[2] " << vtemp[2] <<endl;
-		//cout << "norm is " <<  norm(vtemp) <<endl;
-		if (norm(vtemp) < l0[0] * .1)
-		{ //cout << " distance between "<< it->id << " and " << heid0 << " is " << norm(vtemp) <<endl;
-			delete[] vtemp;
+		double mindis = .25;
+		//if (is_boundary(it->id)>0) mindis=.25;
+		if (veclen(it->hecent, newcenter) < l0[0] * mindis)
+		{
+			return -1;
+		}
+		if (veclen(it->hetop, newcenter) < l0[0] * .2)
+		{
+			return -1;
+		}
+		double mindisvh = .2;
+		if (veclen(v[vidtoindex[it->vin]].co, newcenter) < l0[0] * mindisvh)
+		{
 			return -1;
 		}
 	}
 
-	//cout << " vertices " << v.size();
-	//exit(-1);
-	//int vind=get_vindex(he[heidtoindex[heid0)].vout);
-	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
-	{
-		if (it->vid != vid0)
-		{
-			subvec(it->co, v[vidtoindex[vid0]].co, vtemp);
-			//cout << " vvvv " << it->vid<< "vtemp[0] " << vtemp[0]<< " vtemp[1] " << vtemp[1]<< " vtemp[2] " << vtemp[2] <<endl;
-			//cout << "vvvv " << it->vid<< " norm is " <<  norm(vtemp) <<endl;
-			if (norm(vtemp) < l0[0] * .1)
-			{
-				delete[] vtemp;
-				return -1;
-			}
-		}
-	}
-
-	//cout << "no overlap !\n";	make
-
-	delete[] vtemp;
 	return 1;
-}*/
+}
 
 /*ENERGY HELPER FUNCTIONS */
 
@@ -2271,7 +3100,7 @@ double Geometry::find_dg(int type, int typenext, bool drug)
 		exit(-1);
 	}*/
 
-	double bindg = gb[type][typenext] + drug*(gdrug[type][typenext]-mudrug);
+	double bindg = gb[type][typenext] + drug * (gdrug[type][typenext] - mudrug);
 
 	/*if (((typenext == 0) || (typenext == 3)) && ((type == 0) || (type == 3))) {
 		bindg +=  2*(gdrug-mudrug) * drug;
@@ -2343,8 +3172,9 @@ double Geometry::stretch_energy(int heindex0)
 	return 0.5 * epsilon[et] * (he[heindex0].l - l0[et]) * (he[heindex0].l - l0[et]);
 }
 
-int Geometry::check_bind_wedge(int heid0){
-	int heindex0=heidtoindex[heid0];
+int Geometry::check_bind_wedge(int heid0)
+{
+	int heindex0 = heidtoindex[heid0];
 	get_normal(he[heindex0].id);
 	get_normal(he[heindex0].opid);
 	int opindex0 = heidtoindex[he[heindex0].opid];
@@ -2352,12 +3182,12 @@ int Geometry::check_bind_wedge(int heid0){
 	//int previndex0 = heidtoindex[he[heindex0].previd];
 	int opnextindex0 = heidtoindex[he[opindex0].nextid];
 
-	
 	double *tempvec = new double[3];
 	subvec(v[vidtoindex[he[nextindex0].vout]].co, v[vidtoindex[he[opnextindex0].vout]].co, tempvec);
-	
+
 	//double ndot = dot(he[opindex0].n, he[heindex0].n);
-	if (dot(tempvec, he[heindex0].n) > 0) {
+	if (dot(tempvec, he[heindex0].n) > 0)
+	{
 		delete[] tempvec;
 		return -1;
 	}
@@ -2370,15 +3200,15 @@ double Geometry::bend_energy(int heindex0)
 	//cout << " \n\n     normal " << he[heindex0].n[0] << " " << he[heindex0].n[1] << " " << he[heindex0].n[2] << " " <<endl ;
 	//cout << "\n in bend_energy edge index is "  << heindex0<< endl;
 	int opindex0 = heidtoindex[he[heindex0].opid];
-	if (he[heindex0].nextid == -1 && he[heindex0].previd == -1)
+	if (he[heindex0].nextid == -1 || he[heindex0].previd == -1)
 	{
 		return 0;
 	}
-	if (he[opindex0].nextid == -1 && he[opindex0].previd == -1)
+	if (he[opindex0].nextid == -1 || he[opindex0].previd == -1)
 	{
 		return 0;
 	}
-	//if (is_surface(he[heindex0].id)>0 || is_surface(he[heindex0].opid)>0)  { return 0;}
+	//if (is_boundary(he[heindex0].id)>0 || is_boundary(he[heindex0].opid)>0)  { return 0;}
 	//cout << "in bend_energy 1111111" << endl;
 	double bendE = 0;
 	double ndot;
@@ -2394,41 +3224,41 @@ double Geometry::bend_energy(int heindex0)
 	int nexttype = -1;
 	int prevtype = -1;
 	int etype = he[heindex0].type;
-	int vid0=-1;
-	int opvid0=-1;
-	if (he[heindex0].nextid!=-1) { 
+	int vid0 = -1;
+	int opvid0 = -1;
+	if (he[heindex0].nextid != -1)
+	{
 		nextindex0 = heidtoindex[he[heindex0].nextid];
 		nexttype = he[nextindex0].type;
-		vid0= he[nextindex0].vout;
-
-
+		vid0 = he[nextindex0].vout;
 	}
 
-	if (he[heindex0].previd!=-1) { 
+	if (he[heindex0].previd != -1)
+	{
 		previndex0 = heidtoindex[he[heindex0].previd];
 		prevtype = he[previndex0].type;
-		vid0= he[previndex0].vin;
+		vid0 = he[previndex0].vin;
 	}
-	
+
 	int opnextindex0 = -1;
 	int opprevindex0 = -1;
 	int opnexttype = -1;
 	int opprevtype = -1;
 	int opetype = he[opindex0].type;
 
-	if (he[opindex0].nextid!=-1) {
+	if (he[opindex0].nextid != -1)
+	{
 		opnextindex0 = heidtoindex[he[opindex0].nextid];
 		opnexttype = he[opnextindex0].type;
-		opvid0=he[opnextindex0].vout;
+		opvid0 = he[opnextindex0].vout;
 	}
-	if (he[opindex0].previd!=-1) {
+	if (he[opindex0].previd != -1)
+	{
 		opprevindex0 = heidtoindex[he[opindex0].previd];
 		opprevtype = he[opprevindex0].type;
-		opvid0= he[opprevindex0].vin;
+		opvid0 = he[opprevindex0].vin;
 	}
-	
-	
-	
+
 	//for (vector<HE>::iterator it = g.he.begin() ; it != g.he.end(); it++) {
 	//cout << "EDGE index " <<heindex0 <<" id " << he[heindex0].id << " vin " << vidtoindex[he[heindex0].vin] << "vout " << vidtoindex[he[heindex0].vout] <<endl;
 	//cout << "      opid " << he[heindex0].opid << " nextid " << he[heindex0].nextid << " previd " << he[heindex0].previd <<endl;
@@ -2437,10 +3267,10 @@ double Geometry::bend_energy(int heindex0)
 	//cout << "edge type " << he[heindex0].type << " op type " << he[heidtoindex[he[heindex0].opid)].type <<endl;
 	//cout << " next type" << he[heidtoindex[he[heindex0].nextid)].type << " prev type" << he[heidtoindex[he[heindex0].previd)].type <<endl<<endl;
 	//}
-	
+
 	// test for convex
 	double *tempvec = new double[3];
-	
+
 	subvec(v[vidtoindex[vid0]].co, v[vidtoindex[opvid0]].co, tempvec);
 	//cout << " normal of this edge is " << he[heindex0].n[0] <<" "<< he[heindex0].n[1] << " "<< he[heindex0].n[2] <<endl;
 	//cout << " normal of op edge is " << he[opindex0].n[0] <<" "<< he[opindex0].n[1] << " "<< he[opindex0].n[2] <<endl;
@@ -2508,8 +3338,7 @@ double Geometry::bend_energy(int heindex0)
 		//cout <<"// CD-CD-CD :: CD-BA-AB  "<<endl;
 	}
 
-	
-	else if (((etype == 0 || etype == 3) && (nexttype == 0 || nexttype == 3) && (prevtype == 0 || prevtype == 3) ) && ( (opetype == 3 || opetype == 0)  &&  (opnexttype == 0 || opnexttype == 3)  && (opprevtype == 0 || opprevtype == 3)))
+	else if (((etype == 0 || etype == 3) && (nexttype == 0 || nexttype == 3) && (prevtype == 0 || prevtype == 3)) && ((opetype == 3 || opetype == 0) && (opnexttype == 0 || opnexttype == 3) && (opprevtype == 0 || opprevtype == 3)))
 	{
 		angle0 = 2;
 	}
@@ -2546,7 +3375,6 @@ double Geometry::bend_energy(int heindex0)
 	if (theta0[angle0] > 0)
 	{
 		bendE = kappa[angle0] * (1 - cos(theta - theta0[angle0]));
-		
 
 		if (dot(tempvec, he[heindex0].n) > 0)
 		{
@@ -2555,9 +3383,9 @@ double Geometry::bend_energy(int heindex0)
 			//bendE = kappa[angle0] * (theta - theta0[angle0])*(theta - theta0[angle0]);
 			bendE = kappa[angle0] * (1 - cos(-theta - theta0[angle0]));
 
-			if (theta<theta0[angle0]) {bendE*=1000; }
-			else {bendE*=100;  }
-			//bendE*=1000;
+			//if (theta<theta0[angle0]) {bendE*=1000; }
+			//else {bendE*=100;  }
+			bendE *= 1000;
 		}
 		//bendE = kappa[angle0] * (theta - theta0[angle0])*(theta - theta0[angle0]);
 	}
@@ -2565,10 +3393,10 @@ double Geometry::bend_energy(int heindex0)
 	{
 		bendE = kappa[angle0] * (1 - ndot);
 	}
-	 // cout << " convex"<<endl;}
-	  /** ???? correct for convex**/
-	  //cout << " angle0 is "<< angle0<<endl;
-	  //cout << "BEND E IS " << bendE <<endl;
+	// cout << " convex"<<endl;}
+	/** ???? correct for convex**/
+	//cout << " angle0 is "<< angle0<<endl;
+	//cout << "BEND E IS " << bendE <<endl;
 	if (bendE < 0)
 	{
 		cout << "BEND E IS " << bendE << endl;
@@ -2576,7 +3404,7 @@ double Geometry::bend_energy(int heindex0)
 	}
 
 	delete[] tempvec;
-	
+
 	return bendE;
 }
 
@@ -2639,14 +3467,15 @@ double Geometry::dimer_bend_energy(int heindex0)
 		phitype = 3;
 	//cout <<phitype<< " is phitype "<<endl;
 	//if phi0[phitype]==0
-	
+
 	double kPhi = kappaPhi[phitype];
 	//if (he[nextindex].din==1) kPhi*=10;
-	if (phi<phi0[phitype]) {
-		kPhi/=5;
+	if (phi < phi0[phitype])
+	{
+		kPhi /= 5;
 	}
 	//DbendE = kPhi * (1 - cos(phi - phi0[phitype])); // }
-	DbendE = .5*kPhi * (phi - phi0[phitype])* (phi - phi0[phitype]);
+	DbendE = .5 * kPhi * (phi - phi0[phitype]) * (phi - phi0[phitype]);
 	//if (phi<phi0[phitype]) { DbendE*=.5; }
 	//else {DbendE= kPhi*.1 * (1 - cos(phi-phi0[phitype]));}
 	if (DbendE < 0)
@@ -2696,7 +3525,7 @@ double Geometry::compute_energy()
 
 double Geometry::monomer_energy(int heid0)
 {
-	//heid0 is on the surface
+	//heid0 is on the boundary
 	int heindex0 = heidtoindex[heid0];
 	double etot = stretch_energy(heindex0);
 	int heopindex0 = heidtoindex[he[heindex0].opid];
@@ -2752,45 +3581,182 @@ double Geometry::dimer_energy(int heid0, int heid1)
 double Geometry::vertex_energy(int vid0)
 {
 	double v_eng = 0;
-	int vindex0=vidtoindex[vid0];
+	int vindex0 = vidtoindex[vid0];
+	//cout << "vertex_energy vindex0" << vindex0 <<endl;
 	for (vector<int>::iterator ithe = v[vindex0].hein.begin(); ithe != v[vindex0].hein.end(); ++ithe)
-    { 
-        int heindex = heidtoindex[*ithe];
-                
-        v_eng += stretch_energy(heindex);
-        v_eng += bend_energy(heindex);
-        v_eng += dimer_bend_energy(heindex);
+	{
+		int heindex = heidtoindex[*ithe];
 
-        if (he[heindex].previd != -1)
-        {
-            
-            int previndex = heidtoindex[he[heindex].previd];
-            v_eng +=   dimer_bend_energy(previndex);
+		v_eng += stretch_energy(heindex);
+		//cout << "vertex_energy heindex0 " << heindex << "stretch energy        " << stretch_energy(heindex) << endl;
+		v_eng += bend_energy(heindex);
+		//cout << "vertex_energy heindex0 " << heindex << "bend energy           " << bend_energy(heindex) << endl;
+		v_eng += dimer_bend_energy(heindex);
+		//cout << "vertex_energy heindex0 " << heindex << "dimer bend energy     " << dimer_bend_energy(heindex) << endl;
 
-			//if (is_surface(he[heindex].previd)<0) {
+		if (he[heindex].previd != -1)
+		{
+
+			int previndex = heidtoindex[he[heindex].previd];
+			v_eng += dimer_bend_energy(previndex);
+			//cout << "vertex_energy previndex " << previndex << "dimer bend energy     " <<dimer_bend_energy(previndex) <<endl;
+			//if (is_boundary(he[heindex].previd)<0) {
 			v_eng += bend_energy(previndex);
+			//cout << "vertex_energy previndex " << previndex << "bend energy          " <<bend_energy(previndex) <<endl;
 			//}
-        }
-        if (he[heindex].nextid!= -1)
-        {
-            int nextindex= heidtoindex[he[heindex].nextid];
-            v_eng +=  dimer_bend_energy(nextindex);
-        }
-		//if (is_surface(he[heindex].opid)>0) // ?????
-        //{
-		//	int opindex= heidtoindex[he[heindex].nextid];
-          //  v_eng +=  dimer_bend_energy(opindex);
-		//}
+		}
+		if (he[heindex].nextid != -1)
+		{
+			int nextindex = heidtoindex[he[heindex].nextid];
+			v_eng += dimer_bend_energy(nextindex);
+			//cout << "vertex_energy nextindex " << nextindex << "dimer bend energy      " << dimer_bend_energy(nextindex) <<endl;
+		}
+		/* in case of existance of bound surface add it */
+		if (is_boundary(he[heindex].opid) > 0)
+		{
+			int opindex = heidtoindex[he[heindex].opid];
+			v_eng += dimer_bend_energy(opindex);
+			//cout << "vertex_energy opindex " << opindex << "dimer bend energy           " <<dimer_bend_energy(opindex) <<endl;
+			if (he[opindex].nextid != -1)
+			{
+				int nextopindex = heidtoindex[he[opindex].nextid];
+				v_eng += bend_energy(nextopindex);
+				//cout << "vertex_energy nextopindex " << nextopindex << "bend energy              " <<bend_energy(opindex) <<endl;
+			}
+		}
+	}
 
-    }
-	
-	
+	//cout <<"v_eng " << v_eng <<endl;
 	return v_eng;
 }
 
-int Geometry::get_fusion_vid(int vidsurf0){
+/*void Geometry::get_prev_fusion_heid(int heidsurf0){ //not used
+	//prev_fusion_heid
+	int heindexsurf=heidtoindex[heidsurf0];
+	int vid_in = he[heindexsurf].vin; //if this is next
+	int vindex_in=vidtoindex[vid_in];
+	
 
-	if (is_bond_vsurface(vidsurf0)>0)  { return -1;}
+	if (v[vindex_in].vneigh.size()>0) {
+		for (vector<int>::iterator itv = v[vindex_in].vneigh.begin(); itv != v[vindex_in].vneigh.end(); ++itv){ //loop over neighbors
+			int itvindex=vidtoindex[*itv];
+			if (veclen(v[vindex_in].co,v[itvindex].co)<xi) { //find close neighbor
+				if (v[itvindex].doubleboundary==-1){  // not a doubleboundary vertex
+					int heindex_prev=heidtoindex[v[itvindex].hesurfinid]; // this he could be he_prev
+					
+					int opid_prev=he[heindex_prev].opid;
+					//check the angle:
+					double cangle = dot(he[heidtoindex[opid_prev]].hevec, he[heindexsurf].hevec) / (he[heidtoindex[opid_prev]].l, he[heindexsurf].l);
+					
+					if (cangle > .2 ){ //&& not_cross_edge(he[heindexsurf].id, he[heindex_prev].id) > 0){
+						if ((connected(he[heindexsurf].vout, he[heindex_prev].vin) >0) && (is_bond_vboundary(he[heindexsurf].vout) || is_bond_vboundary(he[heindex_prev].vin))) {
+							he[heindexsurf].prev_wedge_fusion_heid=he[heindex_prev].id;
+						}
+						else
+						{
+							he[heindexsurf].prev_fusion_heid=he[heindex_prev].id;
+						}
+						//he[heindex_prev].next_fusion_heid=he[heindexsurf].id;
+						//if (connected(he[heindexsurf].vout, he[heindex_prev].vin) >0) { //now update fusion_vid //maybe not?
+						//	v[vidtoindex[vid_in]].fusion_vid=*itv;
+						//	v[vidtoindex[*itv]].fusion_vid=vid_in;
+					}
+					
+				}
+			}
+		}
+	}
+}*/
+
+/****************get_next_fusion_heid ****************/
+/* find close vertex from neighborlist of vout of the edge */
+/* if the outgoing edge of that vertx has correct angle that consider half_edge  */
+/* if one of the half edges is bond and vertices on the other ends are not connected -> wedge_fusion_heid */
+/* otherwise if none of the two are bond on the other end,  fusion_heid*/
+
+void Geometry::get_next_fusion_heid(int heidsurf0)
+{
+
+	//next_fusion_heid
+	int heindexsurf = heidtoindex[heidsurf0];
+	int opindexsurf = heidtoindex[he[heindexsurf].opid];
+	//cout << "00 01" <<endl;
+	if (heindexsurf == -1)
+	{
+		cout << "00 erroe in get_next_fusion_heid" << endl;
+		exit(-1);
+	}
+
+	int vid_out = he[heindexsurf].vout;
+	int vindex_out = vidtoindex[vid_out];
+	//cout << "00 in get_next_fusion_heid for heid "<< heidsurf0 <<endl;
+	//cout << "00 in get_next_fusion_heid vid_out is  "<< vid_out <<endl;
+	//if vout has neighbors, check each neighbor vertex
+	/* heindexsurf -> vout   */
+
+	if (v[vindex_out].vneigh.size() > 0 && v[vindex_out].doubleboundary == -1)
+	{
+		//cout << "00 in get_next_fusion_heid for heid "<< heidsurf0 <<endl;
+		//cout << "00 in get_next_fusion_heid vid_out is  "<< vid_out <<endl;
+		//cout<< "00 in get_next_fusion_heid number of neighbors are "<< v[vindex_out].vneigh.size()<<endl;
+		//loop over neighbors
+		/* heindexsurf -> vout -> vneigh (close but not connected) */
+		for (vector<int>::iterator itv = v[vindex_out].vneigh.begin(); itv != v[vindex_out].vneigh.end(); ++itv)
+		{
+			//cout <<endl<< "00 03 in get_next_fusion_heid vid_neigh is  "<< *itv <<endl;
+			int itvindex = vidtoindex[*itv];
+
+			//find close neighbor , size of hein should be <6
+			//next_connected_boundary(vid_out, *itv)<0 &&
+			if ((veclen(v[vindex_out].co, v[itvindex].co) < xi) && (v[vindex_out].hein.size() + v[itvindex].hein.size()) < 7)
+			{
+				//cout << "00 04 veclen(v[vindex_out].co,v[itvindex].co"<< veclen(v[vindex_out].co,v[itvindex].co) <<endl;
+				// not a doubleboundary vertex
+				if (v[itvindex].doubleboundary == -1)
+				{
+					// choose the out going halfedge that can be the heid_next for fusion_heid
+					/* heindexsurf -> vout -> vneigh (close but not connected) -> heboundaryoutid */
+
+					int heindex_next = heidtoindex[v[itvindex].heboundaryoutid];
+					//cout << "00 05in get_next_fusion_heid v[itvindex].heboundaryoutid is "<< v[itvindex].heboundaryoutid <<endl;
+					//check the angle between opposit of two half edges:
+					double cangle = dot(he[opindexsurf].hevec, he[heindex_next].hevec) / (he[opindexsurf].l, he[heindex_next].l);
+					//cout << "00 06 check the angle between opposit of two half edges" << cangle << endl;
+					//cout << "00 07 check boundary index of two half edges, he[heindex_next].boundary_index " << he[heindex_next].boundary_index << endl;
+					//cout << "00 07 check boundary index of two half edges, he[heindexsurf].boundary_index " << he[heindexsurf].boundary_index << endl;
+					if (he[heindex_next].boundary_index == he[heindexsurf].boundary_index && cangle > .2)
+					{ // && not_cross_edge(he[heindexsurf].id, he[heindex_next].id) > 0){
+						//cout << "00 08 he[heindexsurf].nextid " << he[heindexsurf].nextid << endl;
+						//cout << "00 08 he[heindex_next].previd " << he[heindex_next].previd << endl;
+						// if one of the half edges is bond and vertices on the other ends are not connected -> wedge_fusion_heid
+						if ((he[heindexsurf].previd != -1 || he[heindex_next].nextid != -1) && connected(he[heindexsurf].vin, he[heindex_next].vout) > 0)
+						{
+							//cout << "00 connected " << he[heindexsurf].vin << " and " <<  he[heindex_next].vout << " is " << connected(he[heindexsurf].vin, he[heindex_next].vout) <<endl;
+							he[heindexsurf].next_wedge_fusion_heid = he[heindex_next].id;
+							//cout << "00 07" <<" heidsurf0 "<<heidsurf0<< " he[heindexsurf].next_wedge_fusion_heid "<< he[heindexsurf].next_wedge_fusion_heid << endl;
+						}
+						//if none of the two are bond on the other end,  fusion_heid
+						else if (he[heindexsurf].previd == -1 && he[heindex_next].nextid == -1 && connected(he[heindexsurf].vin, he[heindex_next].vout) < 0)
+						{
+							//cout << "00 08" <<endl;
+							he[heindexsurf].next_fusion_heid = he[heindex_next].id;
+							//cout << "00 07" <<" heidsurf0 "<<heidsurf0<< " he[heindexsurf].next_fusion_heid "<< he[heindexsurf].next_fusion_heid << endl;
+						}
+						//he[heindex_next].prev_fusion_heid=he[heindexsurf].id;
+						//if (connected(he[heindexsurf].vin, he[heindex_next].vout) >0) { //maybe not!
+						//	v[vidtoindex[vid_out]].fusion_vid=*itv;
+						//	v[vidtoindex[*itv]].fusion_vid=vid_out;
+						//}
+					}
+				}
+			}
+		}
+	}
+}
+
+/*int Geometry::get_fusion_vid(int vidsurf0){
+
+	if (is_bond_vboundary(vidsurf0)>0)  { return -1;} 
 	//cout << "in get_fusion vid for vid0 " << vidsurf0 <<endl;   
     int vsurfindex0=vidtoindex[vidsurf0];
 	//cout << "vindex is " << vsurfindex0 <<endl;
@@ -2798,7 +3764,7 @@ int Geometry::get_fusion_vid(int vidsurf0){
 	//TESTNEW WAY
 	if  (v[vsurfindex0].vneigh.size()==0) { return -1;}
 	
-	int vhecount=0; /* prevent 7 fold */
+	int vhecount=0; // prevent 7 fold 
 	for (vector<int>::iterator it = v[vsurfindex0].hein.begin(); it != v[vsurfindex0].hein.end(); ++it)
 	{	
 		vhecount++;
@@ -2811,7 +3777,9 @@ int Geometry::get_fusion_vid(int vidsurf0){
 
 	for (int i=0; i<3; i++){
 		//cout << "hesurfinid " << v[vsurfindextemp].hesurfinid <<endl;
+		
 		if (v[vsurfindextemp].hesurfinid==-1) { cout <<"something is wrong for this ! " << endl; exit(-1);}
+		
 		hesurfindextemp=heidtoindex[v[vsurfindextemp].hesurfinid];
 		//cout << "hesurfindextemp " << hesurfindextemp << " id  " << he[hesurfindextemp].id <<endl;
 		vsurfindextemp=vidtoindex[he[hesurfindextemp].vin];
@@ -2823,36 +3791,136 @@ int Geometry::get_fusion_vid(int vidsurf0){
 	if (vhecount>6) { return -1;}
 
 
-	if (is_bond_vsurface(v[vsurfindextemp].vid)>0) { return -1;}
+	if (is_bond_vboundary(v[vsurfindextemp].vid)>0) { return -1;}
 	if (connected(v[vsurfindextemp].vid, vidsurf0) >0) {return -1;}
 	double d= veclen(v[vsurfindex0].co, v[vsurfindextemp].co);
     if (vsurfindextemp==vsurfindex0) { cout << " something went wrong " <<endl; exit(-1);}
     //cout << "vertices distance is " << d << endl;
     
-    /* temp restrict numer of bonds in fusion*/
+    // temp restrict number of bonds in fusion
 	if (d < (xi) ){
         return v[vsurfindextemp].vid;
     }
 
 	return -1;
+}*/
+
+void Geometry::update_fusion_pairs_he()
+{
+
+	//clear fusionhe (vector of all fusion edges)
+	//cout <<"in update fusionpair "<<endl;
+	if (fusionhe.size() > 0)
+	{
+		fusionhe.clear();
+	}
+	if (fusionwedgehe.size() > 0)
+	{
+		fusionwedgehe.clear();
+	}
+	// set all fusion_heid_nex_prev=-1
+
+	for (vector<int>::iterator it = boundary.begin(); it != boundary.end(); ++it)
+	{
+		//cout << "setting pairs for " << *it <<endl;
+		he[heidtoindex[*it]].next_fusion_heid = -1;
+		he[heidtoindex[*it]].prev_fusion_heid = -1;
+		he[heidtoindex[*it]].next_wedge_fusion_heid = -1;
+		he[heidtoindex[*it]].prev_wedge_fusion_heid = -1;
+	}
+	// go over all boundary edges
+	//update next_fusion_heid for each vertex
+
+	for (vector<int>::iterator it = boundary.begin(); it != boundary.end(); ++it)
+	{
+		//cout << "setting next_fusion_heid for " << *it <<endl;
+		// only update if fusion_vid==-1
+		int heinddex0 = heidtoindex[*it];
+		if (he[heinddex0].next_fusion_heid == -1 && he[heinddex0].next_wedge_fusion_heid == -1)
+		{
+			get_next_fusion_heid(*it);
+
+			// regular fusion
+			int temp_next_fusion_heid = he[heinddex0].next_fusion_heid;
+			//cout << "temp_next_fusion_heid " << temp_next_fusion_heid <<endl;
+			if (temp_next_fusion_heid != -1)
+			{
+				if (he[heidtoindex[temp_next_fusion_heid]].prev_fusion_heid == -1)
+				{
+					//cout << "heid is" << *it <<endl;
+					//cout << "temp_next_fusion_heid fusion pair!" << temp_next_fusion_heid <<endl;
+
+					he[heidtoindex[temp_next_fusion_heid]].prev_fusion_heid = *it;
+					fusionhe.push_back(*it);
+					fusionhe.push_back(temp_next_fusion_heid);
+				}
+				else
+				{
+					he[heinddex0].next_fusion_heid = -1;
+				}
+			}
+			// wedeg fusion
+			int temp_next_wedge_fusion_heid = he[heinddex0].next_wedge_fusion_heid;
+			//cout << "temp_next_wedge_fusion_heid" << temp_next_wedge_fusion_heid <<endl;
+			if (temp_next_wedge_fusion_heid != -1)
+			{
+				if (he[heidtoindex[temp_next_wedge_fusion_heid]].prev_wedge_fusion_heid == -1)
+				{
+					//cout << "heid is" << *it <<endl;
+					//cout << "temp_next_fusion_heid fusion pair!" << temp_next_fusion_heid <<endl;
+
+					he[heidtoindex[temp_next_wedge_fusion_heid]].prev_wedge_fusion_heid = *it;
+
+					fusionwedgehe.push_back(*it);
+					fusionwedgehe.push_back(temp_next_wedge_fusion_heid);
+				}
+				else
+				{
+					he[heinddex0].next_wedge_fusion_heid = -1;
+				}
+			}
+		}
+	}
+
+	//temporary double check  this needs an update in function "get_prev_fusion_heid(*it);""
+	/*for (vector<int>::iterator it = boundary.begin(); it != boundary.end(); ++it)
+	{
+		// only update if fusion_vid==-1
+		if (he[heidtoindex[*it]].prev_fusion_heid!=-1) {
+			int temp_prev_fusion_heid=get_prev_fusion_heid(*it);
+			if (he[heidtoindex[temp_prev_fusion_heid]].next_fusion_heid!=*it) {
+				cout << "what is wrong with fusion heid" <<endl;
+			}
+			
+			
+		}
+
+	}*/
 }
 
+/*
 void Geometry::update_fusion_pairs(){
 
-	//cout <<"in update_fusionP_pairs" <<endl;
+
+	//clear fusionv (vector of all fusion vertices)
 	if (fusionv.size()>0) {
 		fusionv.clear();
 	}
-	for (vector<int>::iterator it = surfv.begin(); it != surfv.end(); ++it)
+
+	// set all fusion_vid=-1
+	for (vector<int>::iterator it = boundaryv.begin(); it != boundaryv.end(); ++it)
 	{
 		v[vidtoindex[*it]].fusion_vid=-1;
 
 	}
-	//cout <<"in update_fusionP_pairs surfv.size " << surfv.size() <<endl;
+	// go over all boundary vertices
+	//update fusion_vid for each vertex 
+	//update fusionv vector of all 
+	
 
-	for (vector<int>::iterator it = surfv.begin(); it != surfv.end(); ++it)
+	for (vector<int>::iterator it = boundaryv.begin(); it != boundaryv.end(); ++it)
 	{
-		
+		// only update if fusion_vid==-1
 		if (v[vidtoindex[*it]].fusion_vid==-1) {
 			int tempfusionvid=get_fusion_vid(*it);
 			
@@ -2869,30 +3937,30 @@ void Geometry::update_fusion_pairs(){
 
 	}
 
-}
+}*/
 
-void Geometry::save_vtx(int vid0 , VTX *tempvtx)
+void Geometry::save_vtx(int vid0, VTX *tempvtx)
 {
 
-	int vindex0=vidtoindex[vid0];
-	
+	int vindex0 = vidtoindex[vid0];
+
 	tempvtx->co[0] = v[vindex0].co[0];
-    tempvtx->co[1] = v[vindex0].co[1];
-    tempvtx->co[2] = v[vindex0].co[2];
-	
+	tempvtx->co[1] = v[vindex0].co[1];
+	tempvtx->co[2] = v[vindex0].co[2];
 
 	for (vector<int>::iterator ithe = v[vindex0].hein.begin(); ithe != v[vindex0].hein.end(); ++ithe)
-    {
-		tempvtx->hein.push_back(*ithe); 
+	{
+		tempvtx->hein.push_back(*ithe);
 	}
 	for (vector<int>::iterator itv = v[vindex0].vneigh.begin(); itv != v[vindex0].vneigh.end(); ++itv)
-    {
-		tempvtx->vneigh.push_back(*itv); 
+	{
+		tempvtx->vneigh.push_back(*itv);
 	}
-	tempvtx->fusion_vid=v[vindex0].fusion_vid;
-	tempvtx->hein=v[vindex0].hein;
-	tempvtx->hesurfinid=v[vindex0].hesurfinid;
-	tempvtx->vid=-1; //decide on this later
+	//tempvtx->fusion_vid=v[vindex0].fusion_vid;
+	tempvtx->hein = v[vindex0].hein;
+	tempvtx->doubleboundary = v[vindex0].doubleboundary;
+	//tempvtx->hesurfinid=v[vindex0].hesurfinid;
+	tempvtx->vid = -1; //decide on this later
 }
 
 void subvec(double *vinit, double *vfin, double *vec)
@@ -2917,21 +3985,21 @@ void multvec(double *vinit, double scalar, double *vec)
 }
 
 void centvec(double *vinit, double *vfin, double *vec)
- {
-	vec[0] = (vinit[0] + vfin[0])/2;
-	vec[1] = (vinit[1] + vfin[1])/2;
-	vec[2] = (vinit[2] + vfin[2])/2;
- }
+{
+	vec[0] = (vinit[0] + vfin[0]) / 2;
+	vec[1] = (vinit[1] + vfin[1]) / 2;
+	vec[2] = (vinit[2] + vfin[2]) / 2;
+}
 
-double veclen(double *vinit, double *vfin){
-	double *vec=new double[3];
+double veclen(double *vinit, double *vfin)
+{
+	double *vec = new double[3];
 	vec[0] = vfin[0] - vinit[0];
 	vec[1] = vfin[1] - vinit[1];
 	vec[2] = vfin[2] - vinit[2];
-	double vlen=norm(vec);
+	double vlen = norm(vec);
 	delete[] vec;
-	return(vlen);
-
+	return (vlen);
 }
 
 double norm(double *v)
@@ -2962,7 +4030,7 @@ void randvec(double *v, gsl_rng *r)
 	v[2] = cos(phi);
 	//cout <<"v[0] is " << v[0] <<endl;
 	//cout << " norm v in randvec " <<norm(v)<<endl;
-	
+
 	//double vlen=norm(v);
 	//v[0]/=vlen;
 	//cout <<"normalized v[0] is  " << v[0] <<endl;
@@ -2974,13 +4042,12 @@ void dump_lammps_traj(Geometry &g, int time0)
 {
 	char filename[80];
 	float box = 3.0;
-	g.Nv5 = 0;
-	sprintf(filename, "trajlammps.dat");
+	sprintf(filename, "trajlammps_bonds.dat");
 	FILE *f;
 	f = fopen(filename, "a");
 	//fprintf(f,"@<TRIPOS>MOLECULE\n");
 
-	fprintf(f, "LAMMPSDescription-Generated by Shelfrich at time_step=%d\n", time0);
+	fprintf(f, "LAMMPSDescription-Generated by HEVA at time_step=%d\n", time0);
 	fprintf(f, "\n%d atoms", g.Nv + g.Nd);
 	fprintf(f, "\n%d bonds", g.Nhe / 2);
 	//fprintf(f,"\n%d bonds",g.Nhe/2+g.Nsurf);
@@ -2999,21 +4066,21 @@ void dump_lammps_traj(Geometry &g, int time0)
 	{
 		//cout <<" it->co[0]"<< it->co[0]<< endl;
 		//exit(-1);
-		if (g.is_bond_vsurface(it->vid) > 0)
+		if (g.is_bond_vboundary(it->vid) > 0)
 		{
-			fprintf(f, "\n%li 3 %8.3f %8.3f %8.3f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
+			fprintf(f, "\n%li 3 %10.6f %10.6f %10.6f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
 		}
 
-		else if (it->hein.size() == 5 && g.is_vsurface(it->vid) < 0)
+		else if (it->hein.size() == 5 && g.is_vboundary(it->vid) < 0)
 		{
-			fprintf(f, "\n%li 1 %8.3f %8.3f %8.3f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
-			g.Nv5++;
+			fprintf(f, "\n%li 1 %10.6f %10.6f %10.6f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
+			
 		}
 		else
 		{
-			fprintf(f, "\n%li 2 %8.3f %8.3f %8.3f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
+			fprintf(f, "\n%li 2 %10.6f %10.6f %10.6f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
 		}
-		//fprintf(stderr,"\n%li 1 %8.3f %8.3f %8.3f", distance(g.v.begin(),it)+1 ,it->co[0], it->co[1], it->co[2]);
+		//fprintf(stderr,"\n%li 1 %10.6f %10.6f %10.6f", distance(g.v.begin(),it)+1 ,it->co[0], it->co[1], it->co[2]);
 	}
 	int counter = g.Nv + 1;
 	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
@@ -3031,10 +4098,10 @@ void dump_lammps_traj(Geometry &g, int time0)
 				x1 = -.1 * g.he[preindex].hevec[1];
 				x2 = -.1 * g.he[preindex].hevec[2];
 			}
-			fprintf(f, "\n%d 4 %8.3f %8.3f %8.3f", counter++, x0 + (g.v[vindex]).co[0] + .15 * (it->hevec[0]), x1 + g.v[vindex].co[1] + .15 * (it->hevec[1]), x2 + g.v[vindex].co[2] + .15 * (it->hevec[2]));
+			fprintf(f, "\n%d 4 %10.6f %10.6f %10.6f", counter++, x0 + (g.v[vindex]).co[0] + .15 * (it->hevec[0]), x1 + g.v[vindex].co[1] + .15 * (it->hevec[1]), x2 + g.v[vindex].co[2] + .15 * (it->hevec[2]));
 		}
 	}
-	
+
 	fprintf(f, "\n");
 	fprintf(f, "\nBonds");
 	fprintf(f, "\n");
@@ -3056,11 +4123,11 @@ void dump_lammps_traj(Geometry &g, int time0)
 			fprintf(f, "\n%li %d %d %d", distance(g.he.begin(), it) + 1, btype, g.vidtoindex[it->vin] + 1, g.vidtoindex[it->vout] + 1);
 		}
 		//}
-		//if ( g.is_surface(it->id)<0 && g.is_surface(it->opid)<0) {
+		//if ( g.is_boundary(it->id)<0 && g.is_boundary(it->opid)<0) {
 		//fprintf(f, "\n%li 1 %d %d",distance(g.he.begin(),it)+1 , g.vidtoindex[it->vin]+1, g.vidtoindex[it->vout]+1);
 		//fprintf(stderr, "\n%li 1 %d %d",distance(g.he.begin(),it)+1 , g.vidtoindex[it->vin]+1, g.vidtoindex[it->vout]+1);
 		//}
-		//else if ( g.is_surface(it->id)<0 && g.is_surface(it->opid)>0) {
+		//else if ( g.is_boundary(it->id)<0 && g.is_boundary(it->opid)>0) {
 		//fprintf(f, "\n%li 2 %d %d",distance(g.he.begin(),it)+1 , g.vidtoindex[it->vin]+1, g.vidtoindex[it->vout]+1);
 		//fprintf(stderr, "\n%li 2 %d %d",distance(g.he.begin(),it)+1 , g.vidtoindex[it->vin]+1, g.vidtoindex[it->vout]+1);
 		//}
@@ -3075,17 +4142,97 @@ void dump_lammps_traj(Geometry &g, int time0)
 	fclose(f);
 }
 
+void dump_lammps_traj_restart(Geometry &g, int time0)
+{ //currently no drug
+	char filename[80];
+	float box = 3.0;
+	sprintf(filename, "trajlammps_restart.dat");
+	FILE *f;
+	f = fopen(filename, "a");
+	//fprintf(f,"@<TRIPOS>MOLECULE\n");
+
+	fprintf(f, "LAMMPSDescription-Generated by HEVA at time_step=%d\n", time0);
+	fprintf(f, "\n%d atoms", g.Nv);
+	fprintf(f, "\n%d bonds", g.Nhe);
+	fprintf(f, "\n%d angles", g.Nhe);				  //next _ prev
+	fprintf(f, "\n%li impropers", g.boundary.size()); // prev_boundary this next_boundary
+	fprintf(f, "\n");
+	fprintf(f, "\n1 atom types"); //vertex
+	fprintf(f, "\n4 bond types");
+	fprintf(f, "\n1 angle types");
+	fprintf(f, "\n%d improper types", g.Nboundary);
+	fprintf(f, "\n");
+	fprintf(f, "\n%8.3f %8.3f xlo xhi", -box, box);
+	fprintf(f, "\n%8.3f %8.3f ylo yhi", -box, box);
+	fprintf(f, "\n%8.3f %8.3f zlo zhi", -box, box);
+	fprintf(f, "\n");
+	fprintf(f, "\nAtoms");
+	fprintf(f, "\n");
+
+	for (vector<VTX>::iterator it = g.v.begin(); it != g.v.end(); ++it)
+	{
+		fprintf(f, "\n%li 1 %10.6f %10.6f %10.6f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
+	}
+
+	fprintf(f, "\n");
+	fprintf(f, "\nBonds");
+	fprintf(f, "\n");
+
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+
+		if (it->vin == -1 || it->vout == -1 || g.vidtoindex[it->vin] == -1 || g.vidtoindex[it->vout] == -1)
+		{
+			cout << " dump_data ! error in vin vout of edge " << it->id << endl;
+			exit(-1);
+		}
+		int btype = it->type + 1;
+		fprintf(f, "\n%li %d %d %d", distance(g.he.begin(), it) + 1, btype, g.vidtoindex[it->vin] + 1, g.vidtoindex[it->vout] + 1);
+	}
+	fprintf(f, "\n");
+	fprintf(f, "\nAngles"); // this is he - next -prev
+	fprintf(f, "\n");
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+
+		int atype = 1;
+		int henext = -1;
+		int heprev = -1;
+		if (it->nextid != -1)
+		{
+			henext = g.heidtoindex[it->nextid];
+		}
+		if (it->previd != -1)
+		{
+			heprev = g.heidtoindex[it->previd];
+		}
+
+		fprintf(f, "\n%li %d %d %d %d", distance(g.he.begin(), it) + 1, atype, g.heidtoindex[it->id] + 1, henext + 1, heprev + 1);
+	}
+
+	fprintf(f, "\n");
+	fprintf(f, "\nImpropers"); // this is he - prev_boundary this next_boundary
+	fprintf(f, "\n");
+	for (vector<int>::iterator it = g.boundary.begin(); it != g.boundary.end(); ++it)
+	{
+		int heindex0 = g.heidtoindex[*it];
+		int btype = 0; //ToDo should be updated!
+		fprintf(f, "\n%li %d %d %d %d", distance(g.boundary.begin(), it) + 1, btype, g.heidtoindex[g.he[heindex0].previd_boundary] + 1, heindex0 + 1, g.he[heindex0].boundary_index);
+	}
+	fprintf(f, "\n");
+	fclose(f);
+}
+
 void dump_lammps_data_file(Geometry &g, int time0)
 {
 	char filename[80];
 	float box = 3.0;
-	g.Nv5 = 0;
 	sprintf(filename, "snap_%07d.dat", time0);
 	FILE *f;
 	f = fopen(filename, "w");
 	//fprintf(f,"@<TRIPOS>MOLECULE\n");
 
-	fprintf(f, "LAMMPSDescription-Generated by Shelfrich at time_step=%d\n", time0);
+	fprintf(f, "LAMMPSDescription-Generated by HEVA at time_step=%d\n", time0);
 	fprintf(f, "\n%d atoms", g.Nv + g.Nd);
 	fprintf(f, "\n%d bonds", g.Nhe / 2);
 	//fprintf(f,"\n%d bonds",g.Nhe/2+g.Nsurf);
@@ -3104,21 +4251,21 @@ void dump_lammps_data_file(Geometry &g, int time0)
 	{
 		//cout <<" it->co[0]"<< it->co[0]<< endl;
 		//exit(-1);
-		if (g.is_bond_vsurface(it->vid) > 0)
+		if (g.is_bond_vboundary(it->vid) > 0)
 		{
-			fprintf(f, "\n%li 3 %8.3f %8.3f %8.3f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
+			fprintf(f, "\n%li 3 %10.6f %10.6f %10.6f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
 		}
 
-		else if (it->hein.size() == 5 && g.is_vsurface(it->vid) < 0)
+		else if (it->hein.size() == 5 && g.is_vboundary(it->vid) < 0)
 		{
-			fprintf(f, "\n%li 1 %8.3f %8.3f %8.3f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
-			g.Nv5++;
+			fprintf(f, "\n%li 1 %10.6f %10.6f %10.6f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
+			
 		}
 		else
 		{
-			fprintf(f, "\n%li 2 %8.3f %8.3f %8.3f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
+			fprintf(f, "\n%li 2 %10.6f %10.6f %10.6f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
 		}
-		//fprintf(stderr,"\n%li 1 %8.3f %8.3f %8.3f", distance(g.v.begin(),it)+1 ,it->co[0], it->co[1], it->co[2]);
+		//fprintf(stderr,"\n%li 1 %10.6f %10.6f %10.6f", distance(g.v.begin(),it)+1 ,it->co[0], it->co[1], it->co[2]);
 	}
 	int counter = g.Nv + 1;
 	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
@@ -3136,10 +4283,10 @@ void dump_lammps_data_file(Geometry &g, int time0)
 				x1 = -.1 * g.he[preindex].hevec[1];
 				x2 = -.1 * g.he[preindex].hevec[2];
 			}
-			fprintf(f, "\n%d 4 %8.3f %8.3f %8.3f", counter++, x0 + (g.v[vindex]).co[0] + .15 * (it->hevec[0]), x1 + g.v[vindex].co[1] + .15 * (it->hevec[1]), x2 + g.v[vindex].co[2] + .15 * (it->hevec[2]));
+			fprintf(f, "\n%d 4 %10.6f %10.6f %10.6f", counter++, x0 + (g.v[vindex]).co[0] + .15 * (it->hevec[0]), x1 + g.v[vindex].co[1] + .15 * (it->hevec[1]), x2 + g.v[vindex].co[2] + .15 * (it->hevec[2]));
 		}
 	}
-	
+
 	fprintf(f, "\n");
 	fprintf(f, "\nBonds");
 	fprintf(f, "\n");
@@ -3161,11 +4308,11 @@ void dump_lammps_data_file(Geometry &g, int time0)
 			fprintf(f, "\n%li %d %d %d", distance(g.he.begin(), it) + 1, btype, g.vidtoindex[it->vin] + 1, g.vidtoindex[it->vout] + 1);
 		}
 		//}
-		//if ( g.is_surface(it->id)<0 && g.is_surface(it->opid)<0) {
+		//if ( g.is_boundary(it->id)<0 && g.is_boundary(it->opid)<0) {
 		//fprintf(f, "\n%li 1 %d %d",distance(g.he.begin(),it)+1 , g.vidtoindex[it->vin]+1, g.vidtoindex[it->vout]+1);
 		//fprintf(stderr, "\n%li 1 %d %d",distance(g.he.begin(),it)+1 , g.vidtoindex[it->vin]+1, g.vidtoindex[it->vout]+1);
 		//}
-		//else if ( g.is_surface(it->id)<0 && g.is_surface(it->opid)>0) {
+		//else if ( g.is_boundary(it->id)<0 && g.is_boundary(it->opid)>0) {
 		//fprintf(f, "\n%li 2 %d %d",distance(g.he.begin(),it)+1 , g.vidtoindex[it->vin]+1, g.vidtoindex[it->vout]+1);
 		//fprintf(stderr, "\n%li 2 %d %d",distance(g.he.begin(),it)+1 , g.vidtoindex[it->vin]+1, g.vidtoindex[it->vout]+1);
 		//}
@@ -3173,6 +4320,438 @@ void dump_lammps_data_file(Geometry &g, int time0)
 		//fprintf(f, "\n%li 2 %d %d",distance(g.he.begin(),it)+1 , g.vidtoindex[it->vin]+1, g.vidtoindex[it->vout]+1);
 		//fprintf(stderr, "\n%li 2 %d %d",distance(g.he.begin(),it) , g.vidtoindex[it->vin], g.vidtoindex[it->vout]);
 		//}
+	}
+
+	//exit(-1);
+	fprintf(f, "\n");
+	fclose(f);
+}
+
+
+void update_geometry_parameters(Geometry &g)
+{
+	g.NAB=0;
+	g.NAB_in = 0;
+	g.NCD_Hex = 0;
+	g.NCD_other = 0;
+	g.NCD_T3 = 0;
+	g.NCD_T4 = 0;
+	g.NCD_T3_in = 0;
+	g.NCD_T4_in = 0;
+	g.Nv_in = 0;
+	g.Nhe_in = 0;
+	g.Nv5 =0;
+	g.Nv6=0;
+	//cout <<"in dump  initialization"<<endl;
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		//if (it->type==0) g.NCD++;
+		int heindex0 = g.heidtoindex[it->id];
+		int etype = g.he[heindex0].type;
+
+		int nexttype = -1;
+		int prevtype = -1;
+
+		if (it->nextid != -1)
+			nexttype = g.he[g.heidtoindex[it->nextid]].type;
+		if (it->previd != -1)
+			prevtype = g.he[g.heidtoindex[it->previd]].type;
+
+		int opindex0 = g.heidtoindex[it->opid];
+		int opetype = g.he[opindex0].type;
+
+		int opnexttype = -1;
+		int opprevtype = -1;
+		//cout <<"in dump  here 000"<<endl;
+		if (g.he[opindex0].nextid != -1)
+			opnexttype = g.he[g.heidtoindex[g.he[opindex0].nextid]].type;
+		if (g.he[opindex0].previd != -1)
+			opprevtype = g.he[g.heidtoindex[g.he[opindex0].previd]].type;
+		//cout <<"in dump  here 011"<<endl;
+		//consider only the internal structure
+
+		if ((etype == 1) || (etype == 2))
+			g.NAB++;
+
+
+		if (((etype == 0 || etype == 3) && nexttype == 1 && prevtype == 2) && ((opetype == 3 || opetype == 0) && opnexttype == 1 && opprevtype == 2))
+				//cout <<"in dump  here 013"<<endl;
+				g.NCD_T3 += 1; //CD-BA-AB :: DC-BA-AB in T3
+			else if (((etype == 0 || etype == 3) && nexttype == 1 && prevtype == 2) && (opetype == 3 || opetype == 0) && (opnexttype == 0 || opnexttype == 3) && (opprevtype == 0 || opprevtype == 3))
+				//cout <<"in dump  here 014"<<endl;
+				g.NCD_T4 += 1; //CD_BA_AB :: CD-CD-CD"<<endl;
+			else if ((etype == 0 || etype == 3) && (nexttype == 0 || nexttype == 3) && (prevtype == 0 || prevtype == 3) && ((opetype == 3 || opetype == 0) && opnexttype == 1 && opprevtype == 2))
+				//cout <<"in dump  here 015"<<endl;
+				g.NCD_T4 += 1; // CD-CD-CD :: CD-AB-AB
+			else if (((etype == 0 || etype == 3) && (nexttype == 0 || nexttype == 3) && (prevtype == 0 || prevtype == 3)) && ((opetype == 3 || opetype == 0) && (opnexttype == 0 || opnexttype == 3) && (opprevtype == 0 || opprevtype == 3)))
+				//cout <<"in dump  here 016"<<endl;
+				g.NCD_Hex += 1;
+			else if ((etype == 0 || etype == 3))
+				//cout <<"in dump  here 017"<<endl;
+				g.NCD_other += 1;
+
+		if (g.he[heindex0].nextid != -1 && g.he[opindex0].nextid != -1 && g.v[g.vidtoindex[g.he[g.heidtoindex[g.he[heindex0].nextid]].vout]].hein.size() > 2 && g.v[g.vidtoindex[g.he[g.heidtoindex[g.he[opindex0].nextid]].vout]].hein.size() > 2)
+		{
+			//cout <<"in dump  here 012"<<endl;
+			
+			if (((etype == 0 || etype == 3) && nexttype == 1 && prevtype == 2) && ((opetype == 3 || opetype == 0) && opnexttype == 1 && opprevtype == 2))
+				//cout <<"in dump  here 013"<<endl;
+				g.NCD_T3_in += 1; //CD-BA-AB :: DC-BA-AB in T3
+			else if (((etype == 0 || etype == 3) && nexttype == 1 && prevtype == 2) && (opetype == 3 || opetype == 0) && (opnexttype == 0 || opnexttype == 3) && (opprevtype == 0 || opprevtype == 3))
+				//cout <<"in dump  here 014"<<endl;
+				g.NCD_T4_in += 1; //CD_BA_AB :: CD-CD-CD"<<endl;
+			else if ((etype == 0 || etype == 3) && (nexttype == 0 || nexttype == 3) && (prevtype == 0 || prevtype == 3) && ((opetype == 3 || opetype == 0) && opnexttype == 1 && opprevtype == 2))
+				//cout <<"in dump  here 015"<<endl;
+				g.NCD_T4_in += 1; // CD-CD-CD :: CD-AB-AB
+		}
+
+		if (g.v[g.vidtoindex[it->vin]].hein.size() > 2 && g.v[g.vidtoindex[it->vout]].hein.size() > 2)
+		{
+			g.Nhe_in++;
+			if ((etype == 1) || (etype == 2))
+				g.NAB_in++;
+
+		}
+	}
+
+	g.NAB /= 2;
+	g.NCD_T4 /= 2;
+	g.NCD_T3 /= 2;
+	g.NCD_T4_in /= 2;
+	g.NCD_T3_in /= 2;
+	g.NCD_Hex /= 2;
+	g.NCD_other /= 2;
+	g.Nhe_in /= 2;
+	g.NAB_in /=2;
+
+
+	for (vector<VTX>::iterator it = g.v.begin(); it != g.v.end(); ++it)
+	{
+		if (it->hein.size()>2) g.Nv_in++;
+		if (g.is_vboundary(it->vid)<0) {
+			if (it->hein.size()==6) g.Nv6++;
+			else if (it->hein.size()==5) g.Nv5++;
+		}
+	}
+	
+}
+
+
+void dump_lammps_traj_dimers(Geometry &g, int time0)
+{
+
+	char filename[80];
+	float box = 3.0;
+	
+	sprintf(filename, "trajlammps.dat");
+	FILE *f;
+	f = fopen(filename, "a");
+	//fprintf(f,"@<TRIPOS>MOLECULE\n");
+
+	fprintf(f, "LAMMPSDescription-Generated by HEVA at time_step=%d\n", time0);
+	fprintf(f, "\n%d atoms", g.Nhe + g.Nhe + g.Nhe + g.Nd + 8);
+	fprintf(f, "\n%d bonds", g.Nhe);
+	//fprintf(f,"\n%d bonds",g.Nhe/2+g.Nsurf);
+	fprintf(f, "\n");
+	fprintf(f, "\n10 atom types");
+	fprintf(f, "\n4 bond types");
+	fprintf(f, "\n");
+	fprintf(f, "\n%8.3f %8.3f xlo xhi", -box, box);
+	fprintf(f, "\n%8.3f %8.3f ylo yhi", -box, box);
+	fprintf(f, "\n%8.3f %8.3f zlo zhi", -box, box);
+	fprintf(f, "\n");
+	fprintf(f, "\nAtoms");
+	fprintf(f, "\n");
+	//vin of each half edge
+	int counter = 1;
+
+	//cout <<"in dump  here 222"<<endl;
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+
+		//double x0 = g.v[g.vidtoindex[it->vin]].co[0];
+		//double x1 = g.v[g.vidtoindex[it->vin]].co[1];
+		//double x2 = g.v[g.vidtoindex[it->vin]].co[2];
+
+		double x0 = .9 * (g.v[g.vidtoindex[it->vin]].co[0]) + .1 * (g.v[g.vidtoindex[it->vout]].co[0]);
+		double x1 = .9 * (g.v[g.vidtoindex[it->vin]].co[1]) + .1 * (g.v[g.vidtoindex[it->vout]].co[1]);
+		double x2 = .9 * (g.v[g.vidtoindex[it->vin]].co[2]) + .1 * (g.v[g.vidtoindex[it->vout]].co[2]);
+
+		int atype = it->type + 1;
+
+		if (it->type == 1)
+		{ // AB A
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 2)
+		{ //AB B
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 0)
+		{ //CD C
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 3)
+		{ //CD D
+			if (g.is_boundary(it->id) < 0)
+			{
+				int nexttype = g.he[g.heidtoindex[it->nextid]].type;
+				int prevtype = g.he[g.heidtoindex[it->previd]].type;
+
+				if ((nexttype == 1) && (prevtype == 2))
+					atype = 1;
+			}
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+
+		if (g.v[g.vidtoindex[it->vin]].hein.size() > 2 && g.v[g.vidtoindex[it->vout]].hein.size() > 2)
+		{
+			g.Nhe_in++;
+		}
+	}
+	//cout <<"in dump   here 333"<<endl;
+	g.Nhe_in /= 2;
+	//int counter = g.Nhe + 1;
+
+	//he center beads
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+
+		double x0 = it->hecent[0];
+		double x1 = it->hecent[1];
+		double x2 = it->hecent[2];
+		int atype = it->type + 1;
+		if (it->type == 1)
+		{ // AB A
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 2)
+		{ //AB B
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 0)
+		{ //CD C
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 3)
+		{ //CD D
+			if (g.is_boundary(it->id) < 0)
+			{
+				int nexttype = g.he[g.heidtoindex[it->nextid]].type;
+				int prevtype = g.he[g.heidtoindex[it->previd]].type;
+
+				if ((nexttype == 1) && (prevtype == 2))
+					atype = 1;
+			}
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+	}
+	//cout <<"in dump   here 444"<<endl;
+	//drug beads
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		if (it->din == 1)
+		{
+			int vindex = g.vidtoindex[it->vin];
+			double x0 = 0;
+			double x1 = 0;
+			double x2 = 0;
+			if (it->previd != -1)
+			{
+				int preindex = g.heidtoindex[it->previd];
+				x0 = -.1 * g.he[preindex].hevec[0];
+				x1 = -.1 * g.he[preindex].hevec[1];
+				x2 = -.1 * g.he[preindex].hevec[2];
+			}
+			fprintf(f, "\n%d 5 %10.6f %10.6f %10.6f", counter++, x0 + (g.v[vindex]).co[0] + .15 * (it->hevec[0]), x1 + g.v[vindex].co[1] + .15 * (it->hevec[1]), x2 + g.v[vindex].co[2] + .15 * (it->hevec[2]));
+		}
+	}
+	//cout <<"in dump   here 555"<<endl;
+
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 1, box, box, box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 2, -box, box, box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 3, box, -box, box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 4, box, box, -box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 5, -box, -box, box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 6, -box, box, -box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 7, box, -box, -box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 8, -box, -box, -box);
+
+	counter += 8;
+	//temp
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		double x0 = it->hetop[0];
+		double x1 = it->hetop[1];
+		double x2 = it->hetop[2];
+		//int atype=-1;
+		//if ((it->type == 1) | (it->type == 2)) atype=2;
+
+		int atype = 7 + it->type;
+
+		fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+	}
+	//cout <<"in dump   here 666"<<endl;
+	// now bonds
+	fprintf(f, "\n");
+	fprintf(f, "\nBonds");
+	fprintf(f, "\n");
+
+	//edge_counter=1;
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		// 1 A 2 B 3 C 4 D
+		int btype = it->type + 1;
+		//vin and the middle
+		int index = distance(g.he.begin(), it);
+		fprintf(f, "\n%d %d %d %d", index + 1, btype, index + 1, g.Nhe + index + 1);
+	}
+	//cout <<"in dump   here 777"<<endl;
+	fprintf(f, "\n");
+	fclose(f);
+}
+
+void dump_lammps_data_dimers(Geometry &g, int time0)
+{
+
+	char filename[80];
+	float box = 3.0;
+	sprintf(filename, "snap_%07d.dat", time0);
+	FILE *f;
+	f = fopen(filename, "w");
+	//fprintf(f,"@<TRIPOS>MOLECULE\n");
+
+	fprintf(f, "LAMMPSDescription-Generated by HEVA at time_step=%d\n", time0);
+	fprintf(f, "\n%d atoms", g.Nhe + g.Nhe + g.Nd + 8);
+	fprintf(f, "\n%d bonds", g.Nhe);
+	//fprintf(f,"\n%d bonds",g.Nhe/2+g.Nsurf);
+	fprintf(f, "\n");
+	fprintf(f, "\n6 atom types");
+	fprintf(f, "\n4 bond types");
+	fprintf(f, "\n");
+	fprintf(f, "\n%8.3f %8.3f xlo xhi", -box, box);
+	fprintf(f, "\n%8.3f %8.3f ylo yhi", -box, box);
+	fprintf(f, "\n%8.3f %8.3f zlo zhi", -box, box);
+	fprintf(f, "\n");
+	fprintf(f, "\nAtoms");
+	fprintf(f, "\n");
+	//cout << "here in dump 000"<<endl;
+	int counter = 1;
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+
+		//double x0 = g.v[g.vidtoindex[it->vin]].co[0];
+		//double x1 = g.v[g.vidtoindex[it->vin]].co[1];
+		//double x2 = g.v[g.vidtoindex[it->vin]].co[2];
+
+		double x0 = .9 * (g.v[g.vidtoindex[it->vin]].co[0]) + .1 * (g.v[g.vidtoindex[it->vout]].co[0]);
+		double x1 = .9 * (g.v[g.vidtoindex[it->vin]].co[1]) + .1 * (g.v[g.vidtoindex[it->vout]].co[1]);
+		double x2 = .9 * (g.v[g.vidtoindex[it->vin]].co[2]) + .1 * (g.v[g.vidtoindex[it->vout]].co[2]);
+
+		int atype = it->type + 1;
+
+		if (it->type == 1)
+		{ // AB A
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 2)
+		{ //AB B
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 0)
+		{ //CD C
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 3)
+		{ //CD D
+			if (g.is_boundary(it->id) < 0)
+			{
+				int nexttype = g.he[g.heidtoindex[it->nextid]].type;
+				int prevtype = g.he[g.heidtoindex[it->previd]].type;
+
+				if ((nexttype == 1) && (prevtype == 2))
+					atype = 1;
+			}
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+	}
+	//int counter = g.Nhe + 1;
+
+	//he center beads
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+
+		double x0 = it->hecent[0];
+		double x1 = it->hecent[1];
+		double x2 = it->hecent[2];
+		int atype = it->type + 1;
+		if (it->type == 1)
+		{ // AB A
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 2)
+		{ //AB B
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 0)
+		{ //CD C
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+		else if (it->type == 3)
+		{ //CD D
+			if (g.is_boundary(it->id) < 0)
+			{
+				int nexttype = g.he[g.heidtoindex[it->nextid]].type;
+				int prevtype = g.he[g.heidtoindex[it->previd]].type;
+
+				if ((nexttype == 1) && (prevtype == 2))
+					atype = 1;
+			}
+			fprintf(f, "\n%d %d %10.6f %10.6f %10.6f", counter++, atype, x0, x1, x2);
+		}
+	}
+
+	//drug beads
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		if (it->din == 1)
+		{
+			int vindex = g.vidtoindex[it->vin];
+			double x0 = 0;
+			double x1 = 0;
+			double x2 = 0;
+			if (it->previd != -1)
+			{
+				int preindex = g.heidtoindex[it->previd];
+				x0 = -.1 * g.he[preindex].hevec[0];
+				x1 = -.1 * g.he[preindex].hevec[1];
+				x2 = -.1 * g.he[preindex].hevec[2];
+			}
+			fprintf(f, "\n%d 5 %10.6f %10.6f %10.6f", counter++, x0 + (g.v[vindex]).co[0] + .15 * (it->hevec[0]), x1 + g.v[vindex].co[1] + .15 * (it->hevec[1]), x2 + g.v[vindex].co[2] + .15 * (it->hevec[2]));
+		}
+	}
+
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 1, box, box, box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 2, -box, box, box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 3, box, -box, box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 4, box, box, -box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 5, -box, -box, box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 6, -box, box, -box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 7, box, -box, -box);
+	fprintf(f, "\n%d 6 %10.6f %10.6f %10.6f", 2 * g.Nhe + g.Nd + 8, -box, -box, -box);
+	// now bonds
+	fprintf(f, "\n");
+	fprintf(f, "\nBonds");
+	fprintf(f, "\n");
+
+	//edge_counter=1;
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		// 1 A 2 B 3 C 4 D
+		int btype = it->type + 1;
+		//vin and the middle
+		int index = distance(g.he.begin(), it);
+		fprintf(f, "\n%d %d %d %d", index + 1, btype, index + 1, g.Nhe + index + 1);
 	}
 
 	//exit(-1);
@@ -3204,6 +4783,37 @@ void rotatevec(double *vec, double *axis, double angle, double *vec2)
 	vec2[1] = vx * (ey * ex * mct + ez * st) + vy * (ct + ey * ey * mct) + vz * (ey * ez * mct - ex * st);
 	vec2[2] = vx * (ez * ex * mct - ey * st) + vy * (ez * ey * mct + ex * st) + vz * (ct + ez * ez * mct);
 }
+
+
+void read_points(Geometry &g)
+{
+
+	char filename[80];
+	sprintf(filename, "points.txt");
+	char temp1[20], temp2[20], temp0[20];
+	//g.lenpoints=200000;
+	FILE *file;
+	file = fopen(filename, "r");
+	
+	int x=-1;
+	for (int i = 0; i < g.lenpoints; i++)
+	{
+
+		x = fscanf(file, "%s %s %s\n", temp0, temp1, temp2);
+		if (x==-1){
+			cout <<"error in read points" <<endl;
+			exit(-1);
+		}
+		g.dist_points[i][0] = atof(temp0);
+		g.dist_points[i][1] = atof(temp1);
+		g.dist_points[i][2] = atof(temp2);
+		
+	}
+	
+	fclose(file);
+}
+
+
 
 void read_lammps_data(Geometry &g, char filename[])
 {
@@ -3266,7 +4876,7 @@ void read_lammps_data(Geometry &g, char filename[])
 		//} else {
 		//fetype=0;
 		//}
-		g.add_half_edge_type(atoi(temp1) - 1, atoi(temp2) - 1, atoi(temp0) - 1);
+		g.add_half_edge_type(atoi(temp1) - 1, atoi(temp2) - 1, atoi(temp0) - 1, -1);
 		//fprintf(stderr, "add edge %d  %d %d %d\n",i,atoi(temp1)-1, atoi(temp2)-1,atoi(temp0)-1 );
 		//cout << i <<endl;
 	}
@@ -3400,43 +5010,54 @@ void read_lammps_data(Geometry &g, char filename[])
 	}
 	cout << "Nt " << Nt <<endl;;*/
 	//fprintf(stderr," edges : %d\n",g.Nhe);
-
+	fclose(file);
 	//exit(-1);
 }
 
+/* this fuction should be updated with boundary index */
 int read_restart_lammps_data_file(Geometry &g, char filename[])
 {
 
 	int fNv = 0;
 	int fNhe = 0;
-	
+
 	char s[100];
 	char temp1[20], temp2[20], temp0[20];
 	char TT[] = "Bonds";
 	//char AA[] = "Atoms";
 	char GG[] = "Angles";
+
+	char II[] = "Impropers";
+
 	FILE *file;
-	if ((file = fopen(filename, "r"))){
-		cout <<"resding restart file"<<endl;
+	if ((file = fopen(filename, "r")))
+	{
+		cout << "reading restart file" << endl;
 		//int x = 0;
-		int x=fscanf(file, "%*s %*s %s\n", temp0);
-		if (x==0) {exit(-1);}
-		int step=atoi(temp0);
-		x=fscanf(file, "\n%d %*s", &fNv); //atoms
-		x=fscanf(file, "\n%d %*s", &fNhe ); //bonds
-		x=fscanf(file, "\n%*s %*s" ); //angles next_ prev
-		x=fscanf(file, "\n");
-		x=fscanf(file, "\n%*s %*s %*s"); //vertex
-		x=fscanf(file, "\n%*s %*s %*s");
-		x=fscanf(file, "\n%*s %*s %*s");
-		x=fscanf(file, "\n");
-		x=fscanf(file, "\n%*s %*s %*s %*s"); 
-		x=fscanf(file, "\n%*s %*s %*s %*s");
-		x=fscanf(file, "\n%*s %*s %*s %*s");
-		x=fscanf(file, "\n");
-		x=fscanf(file, "\n%*s");
-		x=fscanf(file, "\n");
-		
+		int x = fscanf(file, "%*s %*s %s\n", temp0);
+		int boundarysize = -1;
+		if (x == 0)
+		{
+			exit(-1);
+		}
+		int step = atoi(temp0);
+		x = fscanf(file, "\n%d %*s", &fNv);			 //atoms
+		x = fscanf(file, "\n%d %*s", &fNhe);		 //bonds
+		x = fscanf(file, "\n%*s %*s");				 //angles next_ prev
+		x = fscanf(file, "\n%d %*s", &boundarysize); //impropers prev_boundary this next_boundary
+		x = fscanf(file, "\n");
+		x = fscanf(file, "\n%*s %*s %*s"); //vertex
+		x = fscanf(file, "\n%*s %*s %*s");
+		x = fscanf(file, "\n%*s %*s %*s");
+		x = fscanf(file, "\n%*s %*s %*s"); //impropers
+		x = fscanf(file, "\n");
+		x = fscanf(file, "\n%*s %*s %*s %*s");
+		x = fscanf(file, "\n%*s %*s %*s %*s");
+		x = fscanf(file, "\n%*s %*s %*s %*s");
+		x = fscanf(file, "\n");
+		x = fscanf(file, "\n%*s");
+		x = fscanf(file, "\n");
+
 		double *vec = new double[3];
 		for (int i = 0; i < fNv; i++)
 		{
@@ -3461,10 +5082,11 @@ int read_restart_lammps_data_file(Geometry &g, char filename[])
 				break;
 			}
 		}
+		/* this part needs update for boundary edges with boundary index*/
 		for (int i = 0; i < fNhe; i++)
 		{
-			x = fscanf(file, "%*s %s %s %s\n",temp0, temp1, temp2);
-			g.add_half_edge_type(atoi(temp1) -1, atoi(temp2) - 1, atoi(temp0) - 1);
+			x = fscanf(file, "%*s %s %s %s\n", temp0, temp1, temp2);
+			g.add_half_edge_type(atoi(temp1) - 1, atoi(temp2) - 1, atoi(temp0) - 1, -1);
 			//fprintf(stderr, "add edge %d  %d %d %d\n",i,atoi(temp1)-1, atoi(temp2)-1,atoi(temp0)-1 );
 			//cout << i <<endl;
 		}
@@ -3480,13 +5102,28 @@ int read_restart_lammps_data_file(Geometry &g, char filename[])
 		for (int i = 0; i < fNhe; i++)
 		{
 			x = fscanf(file, "%*s %*s %s %s %s\n", temp0, temp1, temp2);
-			g.set_prev_next(atoi(temp0)-1 , atoi(temp2)-1, atoi(temp1)-1);
-			
+			g.set_prev_next(atoi(temp0) - 1, atoi(temp2) - 1, atoi(temp1) - 1);
 		}
 
-		g.update_surface();
+		cout << "now next previus boundary from impropers" << endl;
+		while (fscanf(file, "%s", s) == 1)
+		{ //s[0]!='1') {
+			if (strcmp(s, II) == 0)
+			{
+				break;
+			}
+		}
+		for (int i = 0; i < boundarysize; i++)
+		{
+			x = fscanf(file, "%*s %*s %s %s %s \n", temp0, temp1, temp2);
+			g.he[atoi(temp0) - 1].boundary_index = atoi(temp2);
+			g.he[atoi(temp1) - 1].boundary_index = atoi(temp2);
+			g.set_prev_next_boundary(atoi(temp0) - 1, atoi(temp1) - 1);
+			// this should get updated for double boundary
+		}
 
-		
+		g.update_boundary();
+
 		/*for (vector<HE>::iterator it = g.he.begin() ; it != g.he.end(); it++) {
 			cout << "EDGE  " <<distance(g.he.begin(),it) <<" id " << it->id << " vin " << g.vidtoindex[it->vin] << "vout " << g.vidtoindex[it->vout] <<endl;
 			cout << "      opid " << it->opid << " nextid " << it->nextid << " previd " << it->previd <<endl;
@@ -3495,13 +5132,165 @@ int read_restart_lammps_data_file(Geometry &g, char filename[])
 		}
 		cout << "Nt " << Nt <<endl;;*/
 		//fprintf(stderr," edges : %d\n",g.Nhe);
-
-		return(step);
+		fclose(file);
+		return (step);
 	}
-	else{
+	else
+	{
 		make_initial_triangle(g);
+
 	}
-	return(0);
+	return (0);
+}
+
+/* this fuction should be updated with boundary index */
+int read_restart_lammps_data_traj(Geometry &g, FILE *trajfile, int step = -1)
+{
+
+	char s[100];
+	char temp1[20], temp2[20], temp0[20];
+	char TT[] = "Bonds";
+	char GG[] = "Angles";
+	char II[] = "Impropers";
+	int initialstep = step;
+
+	//initialstep=0 read trajectory and do analysis
+	//initialstep=-1 only read trajectory
+	//initailstep>0 read one fram and do analysis
+
+	FILE *analysis_file;
+	analysis_file = fopen("analysis.dat", "w");
+	cout << "analysis file openned" << endl;
+	
+	if (trajfile)
+	{
+		cout << "reading restart file" << endl;
+		;
+		while (fscanf(trajfile, "%*s %*s %s\n", temp0) == 1)
+		{
+			int x = 0;
+			int fNv = -1;
+			int fNhe = -1;
+			int boundarysize = -1;
+			step = atoi(temp0); //timestep -- sweep
+			cout << "step " << step << endl;
+			x = fscanf(trajfile, "\n%*s");					 //atoms
+			if (x==0) break;
+
+			x = fscanf(trajfile, "\n%*s");					 //bonds
+			x = fscanf(trajfile, "\n%d %*s", &fNv);			 //atoms
+			x = fscanf(trajfile, "\n%d %*s", &fNhe);		 //bonds
+			x = fscanf(trajfile, "\n%*s %*s");				 //angles next_ prev
+			x = fscanf(trajfile, "\n%d %*s", &boundarysize); //impropers prev_boundary this next_boundary
+			x = fscanf(trajfile, "\n");
+			x = fscanf(trajfile, "\n%*s %*s %*s"); //vertex
+			x = fscanf(trajfile, "\n%*s %*s %*s");
+			x = fscanf(trajfile, "\n%*s %*s %*s");
+			x = fscanf(trajfile, "\n%*s %*s %*s"); //impropers
+			x = fscanf(trajfile, "\n");
+			x = fscanf(trajfile, "\n%*s %*s %*s %*s");
+			x = fscanf(trajfile, "\n%*s %*s %*s %*s");
+			x = fscanf(trajfile, "\n%*s %*s %*s %*s");
+			x = fscanf(trajfile, "\n");
+			x = fscanf(trajfile, "\n%*s");
+			x = fscanf(trajfile, "\n");
+
+			cout << " fNv is " << fNv << endl;
+			cout << " fNhe is " << fNhe << endl;
+			cout << "boundaysize is " << boundarysize << endl;
+			double *vec = new double[3];
+			for (int i = 0; i < fNv; i++)
+			{
+
+				x = fscanf(trajfile, "%*s %*s %s %s %s\n", temp0, temp1, temp2);
+
+				vec[0] = atof(temp0);
+				vec[1] = atof(temp1);
+				vec[2] = atof(temp2);
+				//fprintf(stderr,"%s %s %s %s %s\n" ,index,vtype ,temp0,temp1,temp2);
+				g.add_vertex(vec);
+				//fprintf(stderr, "%d  %f %f %f \n",i, g.v[i][0],g.v[i][1],g.v[i][2]);
+			}
+			delete[] vec;
+			fprintf(stderr, "read all Vertices\n graph has %d vertices", g.Nv);
+
+			//cout << "now edges" << endl;
+			while (fscanf(trajfile, "%s", s) == 1)
+			{ //s[0]!='1') {
+				if (strcmp(s, TT) == 0)
+				{
+					break;
+				}
+			}
+			/* this part needs update for boundary edges with boundary index*/
+			cout << "fNhe is " << fNhe << endl;
+			for (int i = 0; i < fNhe; i++)
+			{
+				x = fscanf(trajfile, "%*s %s %s %s\n", temp0, temp1, temp2);
+				g.add_half_edge_type(atoi(temp1) - 1, atoi(temp2) - 1, atoi(temp0) - 1, -1);
+				fprintf(stderr, "add edge %d  %d %d %d\n", i, atoi(temp1) - 1, atoi(temp2) - 1, atoi(temp0) - 1);
+				//cout << i <<endl;
+			}
+
+			cout << "now next previus from angles" << endl;
+			while (fscanf(trajfile, "%s", s) == 1)
+			{ //s[0]!='1') {
+				if (strcmp(s, GG) == 0)
+				{
+					break;
+				}
+			}
+			for (int i = 0; i < fNhe; i++)
+			{
+				x = fscanf(trajfile, "%*s %*s %s %s %s\n", temp0, temp1, temp2);
+				g.set_prev_next(atoi(temp0) - 1, atoi(temp2) - 1, atoi(temp1) - 1);
+			}
+
+			cout << "now next previus boundary from impropers" << endl;
+			while (fscanf(trajfile, "%s", s) == 1)
+			{ //s[0]!='1') {
+				if (strcmp(s, II) == 0)
+				{
+					break;
+				}
+			}
+			cout << " here boundary size is" << boundarysize << endl;
+			cout << g.he.size() << endl;
+			for (int i = 0; i < boundarysize; i++)
+			{
+				x = fscanf(trajfile, "%*s %*s %s %s %s \n", temp0, temp1, temp2);
+				cout << "read trajfile boundary index nest prev boundary" << endl;
+				cout << "g.he[atoi(temp0) - 1].boundary_index=atoi(temp2);" << g.he[atoi(temp0) - 1].boundary_index << " = " << atoi(temp2) << endl;
+				g.he[atoi(temp0) - 1].boundary_index = atoi(temp2);
+				g.he[atoi(temp1) - 1].boundary_index = atoi(temp2);
+				cout << "set next prev boundary" << endl;
+				g.set_prev_next_boundary(atoi(temp0) - 1, atoi(temp1) - 1);
+				// this should get updated for double boundary
+			}
+
+			cout << "update neigh" << endl;
+			g.update_neigh();
+			cout << "update normals" << endl;
+			g.update_normals();
+
+			if (initialstep == -1)
+				break;
+
+			cout << "now do analysis" << endl;
+
+			dump_analysis(g, analysis_file, step, -1, -1);
+
+			if (initialstep > 0)
+				break;
+
+			cout << "step" << step << endl;
+			step++;
+		}
+		return (step);
+	}
+	
+	fclose(analysis_file);
+	return (0);
 }
 
 void dump_restart_lammps_data_file(Geometry &g, int time0)
@@ -3511,16 +5300,17 @@ void dump_restart_lammps_data_file(Geometry &g, int time0)
 	sprintf(filename, "restart_lammps.dat");
 	FILE *f;
 	f = fopen(filename, "w");
-	
 
 	fprintf(f, "HEVA-LAMMPSDescription-Generated  time_step= %d\n", time0);
-	fprintf(f, "\n%d atoms", g.Nv );
-	fprintf(f, "\n%d bonds", g.Nhe );
-	fprintf(f, "\n%d angles", g.Nhe ); //next _ prev
+	fprintf(f, "\n%d atoms", g.Nv);
+	fprintf(f, "\n%d bonds", g.Nhe);
+	fprintf(f, "\n%d angles", g.Nhe);				  //next _ prev
+	fprintf(f, "\n%li impropers", g.boundary.size()); // prev_boundary this next_boundary
 	fprintf(f, "\n");
 	fprintf(f, "\n1 atom types"); //vertex
 	fprintf(f, "\n4 bond types");
 	fprintf(f, "\n1 angle types");
+	fprintf(f, "\n%d improper types", g.Nboundary);
 	fprintf(f, "\n");
 	fprintf(f, "\n%8.3f %8.3f xlo xhi", -box, box);
 	fprintf(f, "\n%8.3f %8.3f ylo yhi", -box, box);
@@ -3528,20 +5318,19 @@ void dump_restart_lammps_data_file(Geometry &g, int time0)
 	fprintf(f, "\n");
 	fprintf(f, "\nAtoms");
 	fprintf(f, "\n");
-	
+
 	for (vector<VTX>::iterator it = g.v.begin(); it != g.v.end(); ++it)
 	{
-		fprintf(f, "\n%li 1 %8.3f %8.3f %8.3f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
-		
+		fprintf(f, "\n%li 1 %10.6f %10.6f %10.6f", distance(g.v.begin(), it) + 1, it->co[0], it->co[1], it->co[2]);
 	}
-	
+
 	fprintf(f, "\n");
 	fprintf(f, "\nBonds");
 	fprintf(f, "\n");
-	
+
 	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
 	{
-		
+
 		if (it->vin == -1 || it->vout == -1 || g.vidtoindex[it->vin] == -1 || g.vidtoindex[it->vout] == -1)
 		{
 			cout << " dump_data ! error in vin vout of edge " << it->id << endl;
@@ -3549,27 +5338,39 @@ void dump_restart_lammps_data_file(Geometry &g, int time0)
 		}
 		int btype = it->type + 1;
 		fprintf(f, "\n%li %d %d %d", distance(g.he.begin(), it) + 1, btype, g.vidtoindex[it->vin] + 1, g.vidtoindex[it->vout] + 1);
-		
-		
 	}
 	fprintf(f, "\n");
 	fprintf(f, "\nAngles"); // this is he - next -prev
 	fprintf(f, "\n");
 	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
 	{
-		
-		int atype = 1;
-		int henext=-1;
-		int heprev=-1;
-		if (it->nextid!=-1) {henext=g.heidtoindex[it->nextid]; }
-		if (it->previd!=-1) {heprev=g.heidtoindex[it->previd]; }
 
-		fprintf(f, "\n%li %d %d %d %d", distance(g.he.begin(), it) + 1, atype, g.heidtoindex[it->id]+1,henext+ 1 ,heprev+ 1);
-		
+		int atype = 1;
+		int henext = -1;
+		int heprev = -1;
+		if (it->nextid != -1)
+		{
+			henext = g.heidtoindex[it->nextid];
+		}
+		if (it->previd != -1)
+		{
+			heprev = g.heidtoindex[it->previd];
+		}
+
+		fprintf(f, "\n%li %d %d %d %d", distance(g.he.begin(), it) + 1, atype, g.heidtoindex[it->id] + 1, henext + 1, heprev + 1);
+	}
+
+	fprintf(f, "\n");
+	fprintf(f, "\nImpropers"); // this is he - prev_boundary this next_boundary
+	fprintf(f, "\n");
+	for (vector<int>::iterator it = g.boundary.begin(); it != g.boundary.end(); ++it)
+	{
+		int heindex0 = g.heidtoindex[*it];
+		int btype = 0; //ToDo should be updated!
+		fprintf(f, "\n%li %d %d %d %d", distance(g.boundary.begin(), it) + 1, btype, g.heidtoindex[g.he[heindex0].previd_boundary] + 1, heindex0 + 1, g.he[heindex0].boundary_index);
 	}
 	fprintf(f, "\n");
 	fclose(f);
-	
 }
 
 void dump_data_frame(Geometry &g, FILE *f, int time)
@@ -3690,226 +5491,244 @@ void dump_data_frame(Geometry &g, FILE *f, int time)
 	fprintf(stderr, " L0 %.3f L1 %.3f Theta0 %.3f Theta1 %.3f Phi00 %.3f Phi11 %.3f Phi01 %.3f \n", avgL0 / L0, avgL1 / L1, avgTheta0 / Theta0, avgTheta1 / Theta1, avgPhi00 / Phi00, avgPhi11 / Phi11, avgPhi01 / Phi01);
 }
 
-void recenter(Geometry &g) {
+void dump_analysis(Geometry &g, FILE *ofile, int sweep = -1, int seed = -1, int seconds = -1)
+{
 
-	double XCM=0;
-	double YCM=0;
-	double ZCM=0;
+	if (sweep == 0)
+		fprintf(ofile, "sweep,seed,seconds,epsilon,kappa,kappaPhi,theta0,theta1,gb0,mu,dmu,dg,theta2,energy,binding_energy,Nv5,Nv6,NAB,NAB_in,NCD_Hex,NCD_other,NVin,Nhein,NCD_T4_in, NCD_T3_in,NCD_T4,NCD_T3,Nv,NE,Nsurf,Nboundary\n");
+																			//Nv5,	Nv6,	NAB,	NAB_in,	NCD_Hex, 	NCD_other, 	NVin,	Nhein,NCD_T4,	NCD_T3,	Nv,	NE,	Nsurf, Nboundary\n");
+	update_geometry_parameters(g);
+
+	fprintf(ofile, "%d,%d,%d,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n",
+			sweep, seed, seconds, g.epsilon[0], g.kappa[0], g.kappaPhi[0], g.theta0[0], g.theta0[1], g.gb0, g.mu[0], g.mu[1] - g.mu[0], g.dg, g.theta0[2],
+			g.compute_energy(),g.compute_bind_energy(), g.Nv5, g.Nv6, g.NAB, g.NAB_in,  g.NCD_Hex, g.NCD_other, g.Nv_in,g.Nhe_in,g.NCD_T4_in, g.NCD_T3_in,g.NCD_T4, g.NCD_T3,  g.Nv, g.Nhe / 2,g.Nsurf, g.Nboundary);
+			                    //Nv5,	Nv6,	NAB,	NAB_in,	NCD_Hex, 	NCD_other, 		NVin,	Nhein,NCD_T4,	NCD_T3,		Nv,		NE,		Nsurf, 	Nboundary\n");
+	fflush(ofile);
+}
+
+void recenter(Geometry &g)
+{
+
+	double XCM = 0;
+	double YCM = 0;
+	double ZCM = 0;
 	for (vector<VTX>::iterator it = g.v.begin(); it != g.v.end(); ++it)
-	{    
-		XCM +=it->co[0];
-		YCM +=it->co[1];
-		ZCM +=it->co[2];
-
+	{
+		XCM += it->co[0];
+		YCM += it->co[1];
+		ZCM += it->co[2];
 	}
-	XCM/=g.Nv;
-	YCM/=g.Nv;
-	ZCM/=g.Nv;
+	XCM /= g.Nv;
+	YCM /= g.Nv;
+	ZCM /= g.Nv;
 
 	//cout << "HERE2"<<endl;
-	double vx = XCM;//g.v[0].co[0];
-	double vy = YCM;//g.v[0].co[1];
-	double vz = ZCM;//g.v[0].co[2];
+	double vx = XCM; //g.v[0].co[0];
+	double vy = YCM; //g.v[0].co[1];
+	double vz = ZCM; //g.v[0].co[2];
 	for (vector<VTX>::iterator it = g.v.begin(); it != g.v.end(); ++it)
 	{
 		it->co[0] -= vx;
 		it->co[1] -= vy;
 		it->co[2] -= vz;
 	}
-	g.update_surface();
+	g.update_boundary();
 }
 
-int surfclosev(Geometry &g){
-	int alln=0;
-	for (vector<VTX>::iterator it = g.v.begin(); it != g.v.end(); ++it){
-		alln+=it->vneigh.size();
-		if (it->vneigh.size()>0) {
-			cout<< "vindex is " << distance(g.v.begin(),it) <<  " vid is" << it->vid ;
+int surfclosev(Geometry &g)
+{
+	int alln = 0;
+	for (vector<VTX>::iterator it = g.v.begin(); it != g.v.end(); ++it)
+	{
+		alln += it->vneigh.size();
+		if (it->vneigh.size() > 0)
+		{
+			//cout<< "vindex is " << distance(g.v.begin(),it) <<  " vid is" << it->vid ;
 			for (vector<int>::iterator itv = it->vneigh.begin(); itv != it->vneigh.end(); itv++)
 			{
-				
-				cout <<"     neighbors are " << *itv << " vindex is " << g.vidtoindex[*itv] ;  
-				if (g.vidtoindex[*itv]==-1) { cout << "wrong neighbor" <<endl; exit(-1);}
+
+				//cout <<"     neighbors are " << *itv << " vindex is " << g.vidtoindex[*itv] ;
+				if (g.vidtoindex[*itv] == -1)
+				{
+					cout << "wrong neighbor" << endl;
+					exit(-1);
+				}
 			}
-			cout<<endl;
+			//cout<<endl;
 		}
 	}
-		
-	if (alln%2!=0) { cout <<" odd neighbors" <<endl; exit(-1);}
-	
-	
-	int surfclosevCount=0;
-	for (vector<int>::iterator it = g.surfv.begin(); it != g.surfv.end(); ++it)
+
+	if (alln % 2 != 0)
 	{
-		if (g.v[g.vidtoindex[*it]].vneigh.size()>0) { 
+		cout << " odd neighbors" << endl;
+		exit(-1);
+	}
+
+	int surfclosevCount = 0;
+	for (vector<int>::iterator it = g.boundaryv.begin(); it != g.boundaryv.end(); ++it)
+	{
+		if (g.v[g.vidtoindex[*it]].vneigh.size() > 0)
+		{
 			for (vector<int>::iterator itv = g.v[g.vidtoindex[*it]].vneigh.begin(); itv != g.v[g.vidtoindex[*it]].vneigh.end(); itv++)
-			{    
-				if (veclen(g.v[g.vidtoindex[*itv]].co,g.v[g.vidtoindex[*it]].co)<.5*g.l0[0]) { 
-					surfclosevCount+=1; 
+			{
+				if (veclen(g.v[g.vidtoindex[*itv]].co, g.v[g.vidtoindex[*it]].co) < .5 * g.l0[0])
+				{
+					surfclosevCount += 1;
 					break;
 				}
 			}
 		}
 	}
-	return(surfclosevCount);
+	return (surfclosevCount);
 }
 //void show_status(Geometry &g, int frame, int sweep, int seconds ){
 
 void make_initial_triangle(Geometry &g)
 {
-    double xyz0[3];
-    xyz0[0] = 0;
-    xyz0[1] = 0;
-    xyz0[2] = 0;
+	double xyz0[3];
+	xyz0[0] = 0;
+	xyz0[1] = 0;
+	xyz0[2] = 0;
 
-    for (int i = 0; i < 3; i++)
-    {
-        g.add_vertex(xyz0);
-        xyz0[0] = cos(i * PI / 3);
-        xyz0[1] = sin(i * PI / 3);
-        xyz0[2] = 0;
-    }
-    //for (int i=0; i<3; i++) {
+	for (int i = 0; i < 3; i++)
+	{
+		g.add_vertex(xyz0);
+		xyz0[0] = cos(i * PI / 3);
+		xyz0[1] = sin(i * PI / 3);
+		xyz0[2] = 0;
+	}
+	//for (int i=0; i<3; i++) {
 
-    //	int j=i+1;
-    //	if (i==2) { j=0;}
-    //	if (i>=Nvlast || j>=Nvlast) { cout << "ERROR in make triangle" << endl; exit(-1); }
-    g.add_half_edge_type(g.v[0].vid, g.v[1].vid, 2);
-    g.add_half_edge_type(g.v[1].vid, g.v[0].vid, 1);
-    g.add_half_edge_type(g.v[1].vid, g.v[2].vid, 0);
-    g.add_half_edge_type(g.v[2].vid, g.v[1].vid, 3);
-    g.add_half_edge_type(g.v[2].vid, g.v[0].vid, 1);
-    g.add_half_edge_type(g.v[0].vid, g.v[2].vid, 2);
+	//	int j=i+1;
+	//	if (i==2) { j=0;}
+	//	if (i>=Nvlast || j>=Nvlast) { cout << "ERROR in make triangle" << endl; exit(-1); }
+	g.add_half_edge_type(g.v[0].vid, g.v[1].vid, 2, -1);
+	g.add_half_edge_type(g.v[1].vid, g.v[0].vid, 1, 0); //boundary
+	g.add_half_edge_type(g.v[1].vid, g.v[2].vid, 0, -1);
+	g.add_half_edge_type(g.v[2].vid, g.v[1].vid, 3, 0); //boundary
+	g.add_half_edge_type(g.v[2].vid, g.v[0].vid, 1, -1);
+	g.add_half_edge_type(g.v[0].vid, g.v[2].vid, 2, 0); //boundary
 
-    g.set_prev_next(g.he[0].id, g.he[4].id, g.he[2].id);
-    g.set_prev_next(g.he[2].id, g.he[0].id, g.he[4].id);
-    g.set_prev_next(g.he[4].id, g.he[2].id, g.he[0].id);
+	g.set_prev_next(g.he[0].id, g.he[4].id, g.he[2].id);
+	g.set_prev_next(g.he[2].id, g.he[0].id, g.he[4].id);
+	g.set_prev_next(g.he[4].id, g.he[2].id, g.he[0].id);
 
-    for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); it++)
-    {
-        cout << "in make triangle updating edge" << it->id << endl;
-        
-        g.update_half_edge(it->id);
-        cout << it->id << "in make triangle  TYPE " << g.he[it->id].type << " opid " << it->opid << " OP TYPE " << g.he[g.heidtoindex[it->opid]].type << endl;
-        cout << it->id << "in make triangle  ID " << it->id << " nextid " << it->nextid << " previd " << it->previd << endl;
-    }
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); it++)
+	{
+		cout << "in make triangle updating edge" << it->id << endl;
 
-    g.update_surface();
+		g.update_half_edge(it->id);
+		cout << it->id << "in make triangle  TYPE " << g.he[it->id].type << " opid " << it->opid << " OP TYPE " << g.he[g.heidtoindex[it->opid]].type << endl;
+		cout << it->id << "in make triangle  ID " << it->id << " nextid " << it->nextid << " previd " << it->previd << endl;
+		cout << it->id << "in make triangle  boundary Index " << it->boundary_index << " next_boundary " << it->nextid_boundary << " previd boundary " << it->previd_boundary << endl;
+	}
+
+	g.update_boundary();
 }
+
 void make_initial_pentamer(Geometry &g)
 {
-    double xyz0[3];
-    xyz0[0] = 0;
-    xyz0[1] = 0;
-    xyz0[2] = 0;
+	double xyz0[3];
+	xyz0[0] = 0;
+	xyz0[1] = 0;
+	xyz0[2] = 0;
 
-    for (int i = 0; i < 3; i++)
-    {
-        g.add_vertex(xyz0);
-        xyz0[0] = cos(i * PI / 3);
-        xyz0[1] = sin(i * PI / 3);
-        xyz0[2] = 0;
-    }
-    //for (int i=0; i<3; i++) {
+	for (int i = 0; i < 3; i++)
+	{
+		g.add_vertex(xyz0);
+		xyz0[0] = cos(i * PI / 3);
+		xyz0[1] = sin(i * PI / 3);
+		xyz0[2] = 0;
+	}
+	//for (int i=0; i<3; i++) {
 
-    //	int j=i+1;
-    //	if (i==2) { j=0;}
-    //	if (i>=Nvlast || j>=Nvlast) { cout << "ERROR in make pentamer" << endl; exit(-1); }
-    g.add_half_edge_type(g.v[0].vid, g.v[1].vid, 2);
-    g.add_half_edge_type(g.v[1].vid, g.v[0].vid, 1);
-    g.add_half_edge_type(g.v[1].vid, g.v[2].vid, 0);
-    g.add_half_edge_type(g.v[2].vid, g.v[1].vid, 3);
-    g.add_half_edge_type(g.v[2].vid, g.v[0].vid, 1);
-    g.add_half_edge_type(g.v[0].vid, g.v[2].vid, 2);
+	//	int j=i+1;
+	//	if (i==2) { j=0;}
+	//	if (i>=Nvlast || j>=Nvlast) { cout << "ERROR in make pentamer" << endl; exit(-1); }
+	g.add_half_edge_type(g.v[0].vid, g.v[1].vid, 2, -1);
+	g.add_half_edge_type(g.v[1].vid, g.v[0].vid, 1, 0); //boundary
+	g.add_half_edge_type(g.v[1].vid, g.v[2].vid, 0, -1);
+	g.add_half_edge_type(g.v[2].vid, g.v[1].vid, 3, 0); //boundary
+	g.add_half_edge_type(g.v[2].vid, g.v[0].vid, 1, -1);
+	g.add_half_edge_type(g.v[0].vid, g.v[2].vid, 2, 0); //boundary
 
-    g.set_prev_next(g.he[0].id, g.he[4].id, g.he[2].id);
-    g.set_prev_next(g.he[2].id, g.he[0].id, g.he[4].id);
-    g.set_prev_next(g.he[4].id, g.he[2].id, g.he[0].id);
+	g.set_prev_next(g.he[0].id, g.he[4].id, g.he[2].id);
+	g.set_prev_next(g.he[2].id, g.he[0].id, g.he[4].id);
+	g.set_prev_next(g.he[4].id, g.he[2].id, g.he[0].id);
 
-    for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); it++)
-    {
-        cout << "in make pentame updating edge" << it->id << endl;
-        ;
-        g.update_half_edge(it->id);
-        cout << it->id << "in make pentamer  TYPE " << g.he[it->id].type << " opid " << it->opid << " OP TYPE " << g.he[g.heidtoindex[it->opid]].type << endl;
-    }
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); it++)
+	{
+		cout << "in make pentame updating edge" << it->id << endl;
+		;
+		g.update_half_edge(it->id);
+		cout << it->id << "in make pentamer  TYPE " << g.he[it->id].type << " opid " << it->opid << " OP TYPE " << g.he[g.heidtoindex[it->opid]].type << endl;
+	}
 
-    g.update_surface();
-    //exit(-1);
+	g.update_boundary();
+	//exit(-1);
 
-    cout << " HEREH in pentamer 2" << endl;
-    double *vco = new double[3];
+	cout << " HEREH in pentamer 2" << endl;
+	double *vco = new double[3];
 
-    for (int x = 0; x < 3; x++)
-    {
-        g.update_surface();
-        //dump_lammps_data_file(g, frame++);
+	for (int x = 0; x < 3; x++)
+	{
+		g.update_boundary();
+		//dump_lammps_data_file(g, frame++);
 
-        cout << " after g.update surface" << endl;
-        g.new_vertex(g.Nhe - 1, vco);
-        cout << vco[0] << " " << vco[1] << " " << vco[2] << endl;
-        //exit(-1);
-        g.force_add_dimer(g.Nhe - 1, vco, 0, 1);
-        g.update_half_edge(g.Nhelast - 1);
-        g.update_half_edge(g.Nhelast - 2);
-        g.update_half_edge(g.Nhelast - 3);
-        g.update_half_edge(g.Nhelast - 4);
-    }
-    //exit(-1);
-    g.update_surface();
-    g.force_add_monomer(1, g.Nhe - 1, 0);
-    g.update_half_edge(g.Nhelast - 1);
-    g.update_half_edge(g.Nhelast - 2);
+		cout << " after g.update boundary" << endl;
+		g.new_vertex(g.Nhe - 1, vco);
+		cout << vco[0] << " " << vco[1] << " " << vco[2] << endl;
+		//exit(-1);
+		g.force_add_dimer(g.Nhe - 1, vco, 0, 1);
+		g.update_half_edge(g.Nhelast - 1);
+		g.update_half_edge(g.Nhelast - 2);
+		g.update_half_edge(g.Nhelast - 3);
+		g.update_half_edge(g.Nhelast - 4);
+	}
+	//exit(-1);
+	g.update_boundary();
+	g.force_add_monomer(1, g.Nhe - 1, 0);
+	g.update_half_edge(g.Nhelast - 1);
+	g.update_half_edge(g.Nhelast - 2);
 
-    delete[] vco;
-    //exit(-1);
-    //int vind=-1;
-    g.update_surface();
-    /*for (vector<VTX>::iterator it = g.v.begin() ; it != g.v.end(); ++it) {
-        fprintf(stderr,"\n%li %d %8.3f %8.3f %8.3f\n", distance(g.v.begin(),it), it->vid ,it->co[0], it->co[1], it->co[2]);
-        for (vector<int>::iterator ithe = it->hein.begin() ; ithe != it->hein.end(); ithe++) {
-            cout << "     hein " << *ithe <<endl;
-
-        }
-    }*/
-    //vind++;
-    /* for (vector<int>::iterator ithe = g.v[vind].hein.begin(); ithe != g.v[vind].hein.end(); ++ithe)
-        { //update the geometry
-            //if *ithe
-            int heindex = g.*ithe;
-            cout << " updating edge after move" << *ithe << endl;
-            g.update_half_edge(*ithe);
-            //cout << " updating edge " << *ithe << endl;
-            g.update_half_edge(g.he[heindex].opid);
-            if (g.he[heindex].previd!=-1) {
-
-                g.update_half_edge(g.he[heindex].previd);
-                g.update_half_edge(g.he[g.heidtoindex[g.he[heindex].previd)].opid);
-            }
-            //cout << " updating edge " << g.he[heindex].opid << endl;
-            //if ( g.check_overlap_he(*ithe)<0 ) { overlapflag=-1;}
-        } */
+	delete[] vco;
+	//exit(-1);
+	//int vind=-1;
+	g.update_boundary();
 }
 
+int check_bind_triangle(Geometry &g) //
+{
+	//cout << "in attempt_bind_triangle heid0 " << heid0 << endl;
+	for (vector<int>::iterator it = g.boundary.begin(); it != g.boundary.end(); ++it)
+	{
+		int heid0 = *it;
+		int heindex0 = g.heidtoindex[heid0]; // this edge on boundary
+		/* if triangle */
+		//int bi=g.he[heindex0].boundary_index;
 
-/*int valid(Geometry &g){
-	for (vector<HE>::iterator it = g.he.begin() ; it != g.he.end(); ++it) {
-		if ((it->nextid==-1 && it->previd!=-1) || (it->nextid==-1 && it->previd!=-1)) {
-			cout << " WRONG GEOMETRY " << endl;
-			return -1;
+		//cout << "in attempt_bind_triangle heindex0 " << heindex0 <<  " boundary_index " <<bi << endl;
+
+		int nextboundaryid0 = g.he[heindex0].nextid_boundary;
+		int prevboundaryid0 = g.he[heindex0].previd_boundary;
+
+		if (nextboundaryid0 == -1 || prevboundaryid0 == -1)
+		{
+			cout << "error in attempt_bind_triangle heindex0 " << endl;
+			exit(-1);
 		}
-		if (it->opid==-1) { 
-			cout<< " NO OPPOSIT EDGE" <<endl;
-			return -1;
+
+		//int nextboundaryindex0=g.heidtoindex[nextboundaryid0]; // next of heid0
+		int prevboundaryindex0 = g.heidtoindex[prevboundaryid0]; // prev of heid0
+		if (g.he[prevboundaryindex0].previd == g.he[heindex0].nextid_boundary)
+		{
+
+			g.set_prev_next(heid0, prevboundaryid0, nextboundaryid0);
+			g.set_prev_next(prevboundaryid0, nextboundaryid0, heid0);
+			g.set_prev_next(nextboundaryid0, heid0, prevboundaryid0);
+			g.Nboundary--;
+			return 1;
 		}
-
-		if (it->type!=g.he[g.heidtoindex[it->opid)].type) {
-			cout << " TYPE MISMATCH";
-			return -1;
-		}
-
-
 	}
-	return 1;
-
-}*/
+	return 0;
+}

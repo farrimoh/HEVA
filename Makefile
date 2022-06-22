@@ -1,12 +1,12 @@
 CC = g++
 DEBUG = #-g 
-GSLINC=-I/include
+GSLINC=-I/include`
 GSL=-L/lib
 CFLAGS = -Wall $(DEBUG) -O3 -ffast-math -funroll-loops
 LFLAGS = -Wall $(DEBUG) $(GSL) -lgsl -lgslcblas -lm
 
 
-assembly:  tri_tri_intersect.cpp tri_tri_intersect.h Geometry.cpp Geometry.h MonteCarlo-types.cpp MonteCarlo-types.h run_assembly.cpp
+assembly:  tri_tri_intersect.cpp tri_tri_intersect.hpp Geometry.cpp Geometry.hpp MonteCarlo-types.cpp MonteCarlo-types.hpp run_assembly.cpp
 	
 	$(CC) $(CFLAGS) -c tri_tri_intersect.cpp
 	$(CC) $(CFLAGS) -c Geometry.cpp
