@@ -303,24 +303,24 @@ int main(int argc, char **argv)
 
     {
 
-        //move all vertices
+        // each sweep 12 move trials 
 
-       //move_vertex(g, r);
+        for (int ii=0; ii<12;ii++)
+        {
+        int movetype = gsl_rng_uniform_int(r, 10);
 
-        //g.check_odd_neigh();
+        switch (movetype)
+        {
+        //move vertex
+        case 0:
+            move_vertex(g, r);
+            break;
 
-        //change edge type
+        // attempt change edge type -- try Nhe times --> can be implemented in the function
+        case 1: 
+        {      
 
-        if (g.Nhe==6){
-            ind = gsl_rng_uniform_int(r, g.boundary.size());
-                //cout <<"ind id" << ind<<endl;
-            int hh = g.boundary[ind];
-            int x = attempt_change_edge_type_tri(g, hh, r);
-            if (x >= 0)
-                typechanged++; 
-        }
-        else{
-            for (int nc = 0; nc < g.Nhe/2; nc++)
+            for (int nc = 0; nc < g.Nhe; nc++)
             {
                 int ind1 = gsl_rng_uniform_int(r, g.Nhe);
                 int e1 = g.he[ind1].id;
@@ -330,252 +330,11 @@ int main(int argc, char **argv)
                     typechanged++;
             }
         }
-
-    
-       
-        // attempt add monomer_dimer
-        
-        //if (g.Nhe>6)
-        //{
-            ps_attempt = ks0 * g.Nsurf;
-            if (gsl_rng_uniform(r) < ps_attempt)
-            {
-                ind = gsl_rng_uniform_int(r, g.boundary.size());
-                e = g.boundary[ind];
-                if (g.check_inside_overlap(e) > 0)
-                {
-                    ssadd = attempt_add_monomer_dimer(g, e, r);
-                    if (ssadd > 1)
-                        dimeradded++;
-                    else if (ssadd > 0)
-                        monomeradded++;
-                    ssadd = -1;
-                    g.update_boundary();
-                }
-            }
-        /*}
-        else {
-                ind = gsl_rng_uniform_int(r, g.boundary.size());
-                e = g.boundary[ind];
-                ssadd = attempt_add_monomer_dimer(g, e, r);
-                if (ssadd > 1)
-                    dimeradded++;
-                else if (ssadd > 0)
-                    monomeradded++;
-                ssadd = -1;
-                g.update_boundary();
-        }*/
-        
-
-        //double ps_move = ks0 * g.Nv ;
-        //if (gsl_rng_uniform(r) < ps_move)
-        //{
-        move_vertex(g, r);
-        //}
+        break;
 
 
-        if (g.Nhe>6) {
-
-
-            
-
-
-            //remove monomer dimer
-            ps_attempt = ks0 * g.Nsurf;
-            if (gsl_rng_uniform(r) < ps_attempt)
-            {
-                if (sweep > 0 && g.Nhe > 6)
-                {
-                    ind = gsl_rng_uniform_int(r, g.boundary.size());
-                    e = g.boundary[ind];
-                    if (g.no_bond_boundary(e) > 0)
-                    {
-                        ss = attempt_remove_monomer_dimer(g, e, r);
-                        if (ss > 1)
-                            dimerremoved++;
-                        else if (ss > 0)
-                            monomerremoved++;
-                        ss = 0;
-                        g.update_boundary();
-                    }
-                }
-            }
-
-            if (g.Nhe > 15) 
-            {
-                
-                int cc = check_bind_triangle(g);
-                if (cc > 0)
-                {
-                    cout << "bound triangle" << endl;
-                    g.update_boundary();
-                    boundtri += cc;
-                }
-                else 
-                {
-                    //bind wedge
-                    //if (gsl_rng_uniform(r) < pb_attempt){
-                    ind = gsl_rng_uniform_int(r, g.boundary.size());
-                    int hh = g.boundary[ind];
-                    int tt = -1;
-                    if (g.no_bond_boundary(hh) > 0)
-                    {
-                        tt = attempt_bind_wedge_dimer(g, hh, r);
-                        if (tt > 0)
-                            binding++;
-                        tt = -1;
-                    }
-                    g.update_boundary();
-
-
-                    //unbind wedge
-                    if (g.boundaryvbond.size() > 0) // &&  gsl_rng_uniform(r) < pb_attempt)
-                    {
-                        ind = gsl_rng_uniform_int(r, g.boundary.size());
-                        int hh = g.boundary[ind];
-                        if ((g.is_bond_in_boundary(hh) > 0) || (g.is_bond_out_boundary(hh) > 0))
-                        {
-                            //cout <<" trying unbind vv is " << vv <<endl;
-                            int tt = attempt_unbind_wedge_dimer(g, hh, r);
-                            if (tt > 0)
-                                unbinding++;
-                            tt = -1;
-                            g.update_boundary();
-                        }
-                    }
-
-
-                    if (g.Nhe > minhe_fission && g.Nsurf > 3){ // dont try if only last triangle is open
-
-                        int movetype = gsl_rng_uniform_int(r, 4);
-                        switch (movetype)
-                        {
-                
-                        case 0:
-                            //wedge fusion
-                            if (g.all_neigh > 0 )
-                            {
-                            //double kf0=1;
-                            //double pf_attempt=kf0*g.Nsurf;
-                            //if (gsl_rng_uniform(r) < pf_attempt)
-                            //{
-                            int ff = attempt_wedge_fusion(g, r);
-                            g.update_boundary();
-                            if (ff > 0)
-                                wedgefusion++;
-                            ff = 0;
-                            //}
-                            }
-                            break;
-
-                        case 1:
-                            //wedge fission
-                            {
-                                //pf_attempt=kf0; //g.Nsurf
-                                //if (gsl_rng_uniform(r) < pf_attempt)
-                                //{
-                                int ff = attempt_wedge_fission(g, r);
-                                g.update_boundary();
-                                if (ff > 0)
-                                    wedgefission++;
-                                ff = 0;
-                                //}
-                            }
-                            break;
-
-                        case 2:
-                            //fusion
-                            if (g.all_neigh > 0 )
-                            {
-                                //double kf0=1;
-                                //double pf_attempt=kf0;//g.Nsurf;
-                                //if (gsl_rng_uniform(r) < pf_attempt)
-                                //{
-                                int ff = attempt_fusion(g, r);
-                                g.update_boundary();
-                                if (ff > 0)
-                                    fusion++;
-                                ff = 0;
-                            }
-                            break;
-
-                        case 3:
-                            //fission
-                            
-                            {
-                            //pf_attempt=kf0*.25; //g.Nsurf
-                            //if (gsl_rng_uniform(r) < pf_attempt)
-                            //{
-                            int ff = attempt_fission(g, r);
-                            g.update_boundary();
-                            if (ff > 0)
-                                fission++;
-                            ff = 0;
-                            //}
-                            }
-                            break;
-
-                        }
-                    }
-
-
-                }
-
-            }
-        }
-        // attempt add monomer_dimer
-        //case 3:
-            /*
-            if (g.Nhe>6)
-            {
-                ps_attempt = ks0 * g.Nsurf;
-            if (gsl_rng_uniform(r) < ps_attempt)
-            {
-                ind = gsl_rng_uniform_int(r, g.boundary.size());
-                e = g.boundary[ind];
-                if (g.check_inside_overlap(e) > 0)
-                {
-                    ssadd = attempt_add_monomer_dimer(g, e, r);
-                    if (ssadd > 1)
-                        dimeradded++;
-                    else if (ssadd > 0)
-                        monomeradded++;
-                    ssadd = -1;
-                    g.update_boundary();
-                }
-            }
-            }
-            else {
-                ind = gsl_rng_uniform_int(r, g.boundary.size());
-                e = g.boundary[ind];
-                ssadd = attempt_add_monomer_dimer(g, e, r);
-                if (ssadd > 1)
-                    dimeradded++;
-                else if (ssadd > 0)
-                    monomeradded++;
-                ssadd = -1;
-                g.update_boundary();
-            }
-        //    break;
-
-        double ps_move = ks0 * g.Nhe ;
-        if (gsl_rng_uniform(r) < ps_move)
-        {
-            move_vertex(g, r);
-        }
-        */
-        //if (g.Nhe>6){
-
-       /*for (int ii=0; ii<10;ii++)
-        {
-        int movetype = gsl_rng_uniform_int(r, 10);
-        //cout <<"try moves"<<endl;
-        //if (g.boundary.size() <= 3 && sweep > 10000 && g.Nhe > 10)
-        //    movetype = -1;
-        switch (movetype)
-        {
         //attempt bind wedge
-        case 0:
+        case 2:
             if (g.Nhe > 15) // &&  gsl_rng_uniform(r) < pb_attempt)
             {
                 ind = gsl_rng_uniform_int(r, g.boundary.size());
@@ -594,7 +353,7 @@ int main(int argc, char **argv)
             break;
 
         //attempt unbind wedge
-        case 1:
+        case 3:
             if (g.boundaryvbond.size() > 0) // &&  gsl_rng_uniform(r) < pb_attempt)
             {
                 ind = gsl_rng_uniform_int(r, g.boundary.size());
@@ -612,7 +371,7 @@ int main(int argc, char **argv)
             break;
 
         // attempt remove monomer_dimer
-        case 2:
+        case 4:
 
             ps_attempt = ks0 * g.Nsurf ;
             if (gsl_rng_uniform(r) < ps_attempt)
@@ -635,80 +394,8 @@ int main(int argc, char **argv)
             }
             break;
 
-        
-
-        //attempt wedge fusion
-        case 3:
-            if (g.all_neigh > 0 && g.Nhe > minhe_fission && g.Nsurf > 3)
-            {
-                //double kf0=1;
-                //double pf_attempt=kf0;//g.Nsurf;
-                //if (gsl_rng_uniform(r) < pf_attempt)
-                //{
-                int ff = attempt_wedge_fusion(g, r);
-                g.update_boundary();
-                if (ff > 0)
-                    wedgefusion++;
-                ff = 0;
-                //}
-            }
-            break;
-
-        // attempt_wedge fission
-        case 4:
-            if (g.all_neigh > 0 && g.Nhe > minhe_fission && g.Nsurf > 3)
-            {
-                //pf_attempt=kf0; //g.Nsurf
-                //if (gsl_rng_uniform(r) < pf_attempt)
-                //{
-                int ff = attempt_wedge_fission(g, r);
-                g.update_boundary();
-                if (ff > 0)
-                    wedgefission++;
-                ff = 0;
-                //}
-            }
-            break;
-
-        //attempt fusion  with kg0=1
+        //attempt add monomer_dimer
         case 5:
-            if (g.all_neigh > 0 && g.Nhe > minhe_fission && g.Nsurf > 3)
-            {
-                //double kf0=1;
-                //double pf_attempt=kf0;//g.Nsurf;
-                //if (gsl_rng_uniform(r) < pf_attempt)
-                //{
-                int ff = attempt_fusion(g, r);
-                g.update_boundary();
-                if (ff > 0)
-                    fusion++;
-                ff = 0;
-            }
-            break;
-
-        //attempt fission
-        case 6:
-            if (g.all_neigh > 0 && g.Nhe > minhe_fission && g.Nsurf > 3)
-            {
-                //pf_attempt=kf0*.25; //g.Nsurf
-                //if (gsl_rng_uniform(r) < pf_attempt)
-                //{
-                int ff = attempt_fission(g, r);
-                g.update_boundary();
-                if (ff > 0)
-                    fission++;
-                ff = 0;
-                //}
-            }
-            break;
-        
-
-        case 7:
-            move_vertex(g, r);
-            break;
-
-
-        case 8:
             {
             ps_attempt = ks0 * g.Nsurf;
             if (gsl_rng_uniform(r) < ps_attempt)
@@ -728,46 +415,133 @@ int main(int argc, char **argv)
                 }
             }
             break;
+        
 
-        case 9:
-        {
-            for (int nc = 0; nc < g.Nhe; nc++)
+        //attempt wedge fusion
+        case 6:
+            if (g.all_neigh > 0 && g.Nhe > minhe_fission && g.Nsurf > 3)
             {
-                int ind1 = gsl_rng_uniform_int(r, g.Nhe);
-                int e1 = g.he[ind1].id;
-                int x = -1;
-                x = attempt_change_edge_type(g, e1, r);
-                if (x >= 0)
-                    typechanged++;
+                //double kf0=1;
+                //double pf_attempt=kf0;//g.Nsurf;
+                //if (gsl_rng_uniform(r) < pf_attempt)
+                //{
+                int ff = attempt_wedge_fusion(g, r);
+                g.update_boundary();
+                if (ff > 0)
+                    wedgefusion++;
+                ff = 0;
+                //}
             }
-        }
-        break;
-
-
-        }
-        }*/
-        /*case 8:
-            move_vertex(g, r);
             break;
 
-            //g.check_odd_neigh();
-
-            //change edge type
-        case 9:
-        {
-            for (int nc = 0; nc < g.Nhe; nc++)
+        // attempt_wedge fission
+        case 7:
+            if (g.all_neigh > 0 && g.Nhe > minhe_fission && g.Nsurf > 3)
             {
-                int ind1 = gsl_rng_uniform_int(r, g.Nhe);
-                int e1 = g.he[ind1].id;
-                int x = -1;
-                x = attempt_change_edge_type(g, e1, r);
-                if (x >= 0)
-                    typechanged++;
+                //pf_attempt=kf0; //g.Nsurf
+                //if (gsl_rng_uniform(r) < pf_attempt)
+                //{
+                int ff = attempt_wedge_fission(g, r);
+                g.update_boundary();
+                if (ff > 0)
+                    wedgefission++;
+                ff = 0;
+                //}
             }
-        }
-        break;*/
+            break;
 
-            /*case 8:
+        //attempt fusion  with kg0=1
+        case 8:
+            if (g.all_neigh > 0 && g.Nhe > minhe_fission && g.Nsurf > 3)
+            {
+                //double kf0=1;
+                //double pf_attempt=kf0;//g.Nsurf;
+                //if (gsl_rng_uniform(r) < pf_attempt)
+                //{
+                int ff = attempt_fusion(g, r);
+                g.update_boundary();
+                if (ff > 0)
+                    fusion++;
+                ff = 0;
+            }
+            break;
+
+        //attempt fission
+        case 9:
+            if (g.all_neigh > 0 && g.Nhe > minhe_fission && g.Nsurf > 3)
+            {
+                //pf_attempt=kf0*.25; //g.Nsurf
+                //if (gsl_rng_uniform(r) < pf_attempt)
+                //{
+                int ff = attempt_fission(g, r);
+                g.update_boundary();
+                if (ff > 0)
+                    fission++;
+                ff = 0;
+                //}
+            }
+            break;
+
+
+
+            /****************** DRUG ****************************/
+
+                
+            case 10:
+                double d_attempt = kd0 * g.Nhe/2;
+
+                if (gsl_rng_uniform(r) < d_attempt)
+                {
+
+                    ind = gsl_rng_uniform_int(r, g.Nhe);
+                    //fprintf(stderr, "Attempt add drug, Nd=%d index=%d\n", g.Nd, ind );
+                    e = g.he[ind].id;
+                    //if ((g.he[ind].type == 0 || g.he[ind].type == 3))
+                    //{ //no_bond_boundary(e)>0) {
+                        //fprintf(stderr, "Attempt delete monomer\n" );
+                        ss = attempt_add_drug(g, e, r);
+                        if (ss > 0)
+                        { //cout << "drug added " << endl;
+                            drugadded++;
+                        }
+
+                        //g.update_index();
+
+                        ss = 0;
+                    //}
+                }
+                //g.update_boundary();
+                break;
+
+                //remove drug
+
+            case 11:    
+                if (gsl_rng_uniform(r) < d_attempt && g.Nd > 0)
+                {
+
+                    ind = gsl_rng_uniform_int(r, g.Nhe);
+                    //fprintf(stderr, "Attempt delete drug, Nd=%d index=%d\n", g.Nd, ind );
+                    e = g.he[ind].id;
+                    //if (g.he[ind].type == 0 || g.he[ind].type == 3)
+                    //{ //no_bond_boundary(e)>0) {
+                        //fprintf(stderr, "Attempt delete monomer\n" );
+                        ss = attempt_remove_drug(g, e, r);
+                        if (ss > 0)
+                        { //cout << "drug removed " << endl;
+                            drugremoved++;
+                        }
+                        
+                        ss = 0;
+                    //}
+                }
+                
+                g.update_boundary();
+
+
+                // if dissassembly simulations : uncomment this two and remove check_bind_triangle(g) afte switch part
+                    /*
+                                //bind triangle
+            case 12:
             if (g.Nsurf > 0){
                 int p_attempt = kb0 * g.Nsurf;
                 if (gsl_rng_uniform(r) < p_attempt)
@@ -783,8 +557,8 @@ int main(int argc, char **argv)
             }
             break;
 
-        case 9:
-            
+            case 13:
+            {
             int p_attempt = kb0 * g.Nhe;
             if ( gsl_rng_uniform(r) < p_attempt)
             {
@@ -796,63 +570,11 @@ int main(int argc, char **argv)
                 }
                 g.update_boundary();
             }
+            }
             break;*/
-
-            /****************** DRUG ****************************/
-            /* uncomment this part for drug 
-                
-                case 8:
-                    double d_attempt = kd0 * g.Nhe/2;
-
-                    if (gsl_rng_uniform(r) < d_attempt)
-                    {
-
-                        ind = gsl_rng_uniform_int(r, g.Nhe);
-                        //fprintf(stderr, "Attempt add drug, Nd=%d index=%d\n", g.Nd, ind );
-                        e = g.he[ind].id;
-                        //if ((g.he[ind].type == 0 || g.he[ind].type == 3))
-                        //{ //no_bond_boundary(e)>0) {
-                            //fprintf(stderr, "Attempt delete monomer\n" );
-                            ss = attempt_add_drug(g, e, r);
-                            if (ss > 0)
-                            { //cout << "drug added " << endl;
-                                drugadded++;
-                            }
-
-                            //g.update_index();
-
-                            ss = 0;
-                        //}
-                    }
-                    //g.update_boundary();
-                    break;
-
-                    //remove drug
-
-                case 9:    
-                    if (gsl_rng_uniform(r) < d_attempt && g.Nd > 0)
-                    {
-
-                        ind = gsl_rng_uniform_int(r, g.Nhe);
-                        //fprintf(stderr, "Attempt delete drug, Nd=%d index=%d\n", g.Nd, ind );
-                        e = g.he[ind].id;
-                        //if (g.he[ind].type == 0 || g.he[ind].type == 3)
-                        //{ //no_bond_boundary(e)>0) {
-                            //fprintf(stderr, "Attempt delete monomer\n" );
-                            ss = attempt_remove_drug(g, e, r);
-                            if (ss > 0)
-                            { //cout << "drug removed " << endl;
-                                drugremoved++;
-                            }
-                            
-                            ss = 0;
-                        //}
-                    }
                     
-                    g.update_boundary();
-                    */
-        //}
-        //}
+        }
+        }
         /****************** OUTPUT ****************************/
 
         double ee = 0;
@@ -865,7 +587,7 @@ int main(int argc, char **argv)
             ee = g.compute_energy();
 
             ////dump_lammps_traj(g, int(sweep));
-            //dump_lammps_traj_dimers(g, sweep);
+            dump_lammps_traj_dimers(g, sweep);
 
             time(&timer2);
             seconds = difftime(timer2, timer1);
@@ -938,15 +660,16 @@ int main(int argc, char **argv)
 
 
 
-        /*if (sweep % (freq_vis)==0) {
+        if (sweep % (freq_vis)==0) {
             
-            //dump_lammps_traj_dimers(g, int(sweep)); 
+            dump_lammps_traj_dimers(g, int(sweep)); 
             
-        }*/
+        }
         g.check_odd_neigh();
         //g.update_neigh();
 
-        
+        //drug simulations ,allow capsids to grow large
+        /*
         if (g.Nhe>70 && g.Nhe < minHE_update_neigh && sweep % 10000 == 0)
         {
             double thispace=float(g.Nhe-lastNhe)/10000.0; //pace of adding Nhe per sweep
@@ -959,7 +682,7 @@ int main(int argc, char **argv)
             
             npace++;
             lastNhe=g.Nhe;
-        }
+        }*/
 
         if (g.Nhe > minHE_update_neigh && sweep % 10000 == 0)
         {
@@ -973,8 +696,10 @@ int main(int argc, char **argv)
                 exit(-1);
             }
         }
+
+        //for drug simulations do not stop capsis growth
         //see if capsid is growing or it is stalled in mixed morphology
-        if (g.Nhe > minHE_update_neigh && sweep % (10*avgAddInterval) == 0)
+        /*if (g.Nhe > minHE_update_neigh && sweep % (10*avgAddInterval) == 0)
         {    
             update_geometry_parameters(g);
             if ( g.Nhe - lastNhe<=2 ){
@@ -984,7 +709,7 @@ int main(int argc, char **argv)
                     {
                         cout << "STOP for now - mixed morph" << endl;
                         g.update_boundary();
-                        //dump_lammps_traj_dimers(g, int(sweep));
+                        dump_lammps_traj_dimers(g, int(sweep));
                         dump_lammps_data_dimers(g, 44444444);
                         dump_lammps_data_dimers(g, 11111111);
                         time(&timer2);
@@ -1001,7 +726,7 @@ int main(int argc, char **argv)
                 if (g.NCD_T4_in>0 && g.NCD_T3_in>0 && abs( g.Nhe - lastNheGrowth)<=4 ){
                     fprintf(stderr, "STOP for now - not growing\n");
                     g.update_boundary();
-                    //dump_lammps_traj_dimers(g, int(sweep));
+                    dump_lammps_traj_dimers(g, int(sweep));
                     dump_lammps_data_dimers(g, 333333333);
                     dump_lammps_data_dimers(g, 11111111);
                     dump_restart_lammps_data_file(g, sweep);
@@ -1016,14 +741,14 @@ int main(int argc, char **argv)
 
             lastNhe = g.Nhe;
             
-        }
+        }*/
 
         if (sweep == 200000000)
         {
 
             fprintf(stderr, "STOP for now - too long\n");
             g.update_boundary();
-            //dump_lammps_traj_dimers(g, int(sweep));
+            dump_lammps_traj_dimers(g, int(sweep));
             //dump_lammps_traj_restart(g, int(sweep));
             dump_lammps_data_dimers(g, 77777777);
             dump_restart_lammps_data_file(g, sweep);
@@ -1033,12 +758,13 @@ int main(int argc, char **argv)
             exit(-1);
         }
 
-        if (g.Nhe >= 310 || g.Nv >= 65)
+        //for drug simulations alow it to run to large sizes
+        /*if (g.Nhe >= 310 || g.Nv >= 65)
         {
 
             fprintf(stderr, "STOP for now - too large\n");
             g.update_boundary();
-            //dump_lammps_traj_dimers(g, int(sweep));
+            dump_lammps_traj_dimers(g, int(sweep));
             dump_lammps_data_dimers(g, 88888888);
             dump_lammps_data_dimers(g, 11111111);
             dump_restart_lammps_data_file(g, sweep);
@@ -1046,11 +772,11 @@ int main(int argc, char **argv)
             seconds = difftime(timer2, timer1);
             dump_analysis(g, ofile, sweep, seed, seconds);
             exit(-1);
-        }
+        }*/
         sweep++;
     }
     //dump_lammps_traj_restart(g, int(sweep));
-    //dump_lammps_traj_dimers(g, int(sweep));
+    dump_lammps_traj_dimers(g, int(sweep));
 
     //if (g.Nboundary == 1)
     dump_restart_lammps_data_file(g, sweep);
@@ -1071,7 +797,7 @@ int main(int argc, char **argv)
         if (sweep % freq_vis == 0)
         {
 
-            //dump_lammps_traj_dimers(g, int(sweep));
+            dump_lammps_traj_dimers(g, int(sweep));
         }
         if (sweep % freq_out == 0)
         {
@@ -1096,7 +822,7 @@ int main(int argc, char **argv)
         sweep++;
     }
 
-    //dump_lammps_traj_dimers(g, frame++);
+    dump_lammps_traj_dimers(g, frame++);
     dump_lammps_data_file(g, 22222222);
     dump_lammps_data_dimers(g, 11111111);
     dump_restart_lammps_data_file(g, sweep);
