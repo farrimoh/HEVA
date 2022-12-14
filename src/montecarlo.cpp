@@ -1,9 +1,10 @@
 /*
-    * MonteCarlo.cpp
-    *
-    *  Created on: May 3, 2019
-    *      Author: farri
-    */
+* montecarlo.cpp
+*
+* Created on: May 3, 2019
+* Author: Farri Mohajerani 
+*/
+
 #include "geometry.hpp"
 #include "montecarlo.hpp"
 #include <gsl/gsl_rng.h>
