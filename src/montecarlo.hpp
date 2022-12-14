@@ -1,8 +1,8 @@
 /*
- * MonteCarlo.h
+ * montecarlo.hpp
  *
- *  Created on: Apr 25, 2019
- *      Author: farri
+ * Created on: Apr 25, 2019
+ * Author: Farri Mohajerani
  */
 
 #ifndef MONTECARLO_H_
