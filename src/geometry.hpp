@@ -1,8 +1,8 @@
 /*
- * geometry.h
+ * geometry.hpp
  *
  *  Created on: Apr 25, 2019
- *      Author: farri
+ *  Author: Farri Mohajerani 
  */
 
 #ifndef geometry_H_
