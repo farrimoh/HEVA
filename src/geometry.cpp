@@ -1,8 +1,8 @@
 /*
  * geometry.cpp
  *
- *  Created on: Apr 25, 2019
- *      Author: farri
+ * Created on: Apr 25, 2019
+ * Author: Farri Mohajerani 
  */
 
 #include "geometry.hpp"
