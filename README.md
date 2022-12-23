@@ -1,5 +1,5 @@
 # HEVA
-**H**alf **E**dge data-structure for **V**irus **A**ssembly Simulation
+**H**alf **E**dge data-structure for **V**irus **A**ssembly Simulations
 
 Grand Canonical Monte Carlo Simulations
 
