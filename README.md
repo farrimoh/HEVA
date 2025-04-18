@@ -21,28 +21,24 @@ The simulation framework implements a multiscale model of HBV capsid assembly th
 - **Conformation-Dependent Interactions**: Different binding affinities for various dimer-dimer interactions
 - **Elastic Energy Model**: Incorporates stretching, bending, and binding angle moduli
 
-### Energy Model
-The total energy of a capsid configuration is given by:
-```
-H_capsid = H_elastic + H_steric + H_bind + H_conf
-```
-where:
-- `H_elastic`: Elastic energy from edge length, dihedral angle, and binding angle fluctuations
-- `H_steric`: Excluded volume interactions
-- `H_bind`: Binding energy between dimer pairs
-- `H_conf`: Conformational free energy landscape
 
 ## Key Findings
-Based on the research published in [Multiscale Modeling of Hepatitis B Virus Capsid Assembly and Its Dimorphism](https://pubs.acs.org/doi/10.1021/acsnano.2c02119):
+Our model captures key biophysical characteristics of HBV capsid assembly and offers insights into its polymorphic behavior. Specifically, we observe:
 
-1. **Assembly Pathways**: The model successfully reproduces experimental observations of HBV assembly pathways and products, including T=3 and T=4 icosahedral structures.
+1. **Assembly Pathways**: The simulation framework reproduces experimentally observed assembly trajectories, including the formation of both T=3 and T=4 icosahedral capsids.
 
-2. **Polymorphism Control**: Capsid polymorphism is promoted by the low HBV capsid bending modulus, with key factors being:
-   - Conformational energy landscape
-   - Protein-protein binding affinities
-   - Coupling between protein conformational state and interactions
+2. **Polymorphism Control**: The model highlights how capsid polymorphism emerges from a combination of factors:
 
-3. **Ionic Strength Effects**: Higher proportions of T=3 capsids assemble at higher ionic strengths, suggesting that salt concentration shifts the conformational equilibrium toward CD dimer conformations.
+The underlying conformational energy landscape
+
+Variations in dimer-dimer binding affinities
+
+Coupling between protein conformation and interaction specificity
+
+3. **Ionic Strength Effects**: Simulations reveal that higher ionic strengths favor the assembly of T=3 structures, suggesting a shift in conformational equilibrium toward CD dimer formation under these conditions.
+
+For a more detailed discussion of the model and results, see our publication:
+[Multiscale Modeling of Hepatitis B Virus Capsid Assembly and Its Dimorphism](https://pubs.acs.org/doi/10.1021/acsnano.2c02119)
 
 ## Implementation Details
 ### Dependencies
