@@ -45,46 +45,24 @@ For a more detailed discussion of the model and results, see our publication:
 - Make build system
 
 ### Building the Project
+1. Install dependencies:
 
-#### Windows (using MSYS2)
-1. Install MSYS2 from https://www.msys2.org/
-2. Open MSYS2 terminal and install dependencies:
    ```bash
+   # Windows (MSYS2)
    pacman -Syu
    pacman -S mingw-w64-x86_64-gsl mingw-w64-x86_64-gcc make
-   ```
 
-3. Build the project:
-   ```bash
-   cd src
-   make clean
-   make assembly
-   ```
-
-#### Linux
-1. Install dependencies using your package manager:
-   ```bash
-   # Ubuntu/Debian
+   # Linux (Ubuntu/Debian)
    sudo apt-get update
    sudo apt-get install libgsl-dev g++ make
 
-   # Fedora
+   # Linux (Fedora)
    sudo dnf install gsl-devel gcc-c++ make
 
-   # Arch Linux
+   # Linux (Arch)
    sudo pacman -S gsl gcc make
-   ```
 
-2. Build the project:
-   ```bash
-   cd src
-   make clean
-   make assembly
-   ```
-
-#### macOS
-1. Install dependencies using Homebrew:
-   ```bash
+   # macOS (Homebrew)
    brew update
    brew install gsl gcc make
    ```
