@@ -29,11 +29,9 @@ Our model captures key biophysical characteristics of HBV capsid assembly and of
 
 2. **Polymorphism Control**: The model highlights how capsid polymorphism emerges from a combination of factors:
 
-The underlying conformational energy landscape
-
-Variations in dimer-dimer binding affinities
-
-Coupling between protein conformation and interaction specificity
+- The underlying conformational energy landscape 
+- Variations in dimer-dimer binding affinities
+- Coupling between protein conformation and interaction specificity
 
 3. **Ionic Strength Effects**: Simulations reveal that higher ionic strengths favor the assembly of T=3 structures, suggesting a shift in conformational equilibrium toward CD dimer formation under these conditions.
 
