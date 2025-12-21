@@ -48,23 +48,9 @@ For a more detailed discussion of the model and results, see our publication:
 1. Install dependencies:
 
    ```bash
-   # Windows (MSYS2)
-   pacman -Syu
-   pacman -S mingw-w64-x86_64-gsl mingw-w64-x86_64-gcc make
-
    # Linux (Ubuntu/Debian)
    sudo apt-get update
    sudo apt-get install libgsl-dev g++ make
-
-   # Linux (Fedora)
-   sudo dnf install gsl-devel gcc-c++ make
-
-   # Linux (Arch)
-   sudo pacman -S gsl gcc make
-
-   # macOS (Homebrew)
-   brew update
-   brew install gsl gcc make
    ```
 
 2. Build the project:
