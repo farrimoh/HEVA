@@ -11,11 +11,17 @@ OBJECTS := $(SOURCES:.cpp=.o)
 
 all: $(TARGET)
 
+.PHONY: smoke_run
+
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $@
 
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -c $< -o $@
+
+smoke_run:
+	$(MAKE) -C ../src
+	bash ./smoke_restart_run.sh ../src/assemble ../test/restart_lammps.dat
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)

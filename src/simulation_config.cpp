@@ -56,21 +56,22 @@ bool parse_double_value(const char *text, double &value)
 
 std::string assemble_usage()
 {
-    return "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [indexCapacity]";
+    return "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [indexCapacity] [maxSweeps]";
 }
 
 bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, std::string &error_message)
 {
-    if (argc != 21 && argc != 22)
+    if (argc != 21 && argc != 22 && argc != 23)
     {
         std::ostringstream message;
-        message << "Expected 20 or 21 arguments after the executable name, got " << (argc - 1) << ".\n"
+        message << "Expected 20, 21, or 22 arguments after the executable name, got " << (argc - 1) << ".\n"
                 << assemble_usage();
         error_message = message.str();
         return false;
     }
 
     config.indexCapacity = 1000000UL;
+    config.maxSweeps = 0UL;
 
     if (!parse_unsigned_long(argv[1], config.seed))
     {
@@ -115,6 +116,20 @@ bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, st
         if (!parse_unsigned_long(argv[21], config.indexCapacity) || config.indexCapacity == 0 || config.indexCapacity > static_cast<unsigned long>(INT_MAX))
         {
             error_message = "Invalid value for indexCapacity.\n" + assemble_usage();
+            return false;
+        }
+    }
+    else if (argc == 23)
+    {
+        if (!parse_unsigned_long(argv[21], config.indexCapacity) || config.indexCapacity == 0 || config.indexCapacity > static_cast<unsigned long>(INT_MAX))
+        {
+            error_message = "Invalid value for indexCapacity.\n" + assemble_usage();
+            return false;
+        }
+
+        if (!parse_unsigned_long(argv[22], config.maxSweeps))
+        {
+            error_message = "Invalid value for maxSweeps.\n" + assemble_usage();
             return false;
         }
     }

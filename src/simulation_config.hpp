@@ -7,6 +7,7 @@ struct SimulationConfig
 {
     unsigned long seed;
     unsigned long indexCapacity;
+    unsigned long maxSweeps;
     double epsilon0;
     double kappa0;
     double kappaPhi0;

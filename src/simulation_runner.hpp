@@ -1,0 +1,65 @@
+#ifndef SIMULATION_RUNNER_HPP
+#define SIMULATION_RUNNER_HPP
+
+#include "simulation_config.hpp"
+
+#include <gsl/gsl_rng.h>
+
+#include <cstdio>
+#include <ctime>
+
+class geometry;
+
+struct SimulationRunStats
+{
+    int frame;
+    int monomeradded;
+    int dimeradded;
+    int monomerremoved;
+    int dimerremoved;
+    int drugadded;
+    int drugremoved;
+    int typechanged;
+    int fusion;
+    int fission;
+    int wedgefusion;
+    int wedgefission;
+    int boundtri;
+    int binding;
+    int unbinding;
+    int deletednorate;
+    int lastNhe;
+    int lastNheGrowth;
+    int npace;
+    double avgpace;
+    int avgAddInterval;
+
+    SimulationRunStats();
+};
+
+struct SimulationLoopSettings
+{
+    int minHEUpdateNeigh;
+    int minhe_fission;
+    int freq_vis;
+    int freq_log;
+    int freq_out;
+    int initial_equilibration_steps;
+    int final_equilibration_steps;
+    unsigned long maxSweeps;
+
+    SimulationLoopSettings();
+};
+
+enum SimulationStopReason
+{
+    SIMULATION_STOP_CLOSED = 0,
+    SIMULATION_STOP_MAX_SWEEPS = 1
+};
+
+SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &config);
+void initialize_from_restart(geometry &g, gsl_rng *rng, const char *filename, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings);
+SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long seed, time_t start_time, unsigned long &sweep, double ks0, SimulationRunStats &stats, const SimulationLoopSettings &settings);
+void finalize_simulation(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long seed, time_t start_time, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings, SimulationStopReason stop_reason);
+
+#endif
