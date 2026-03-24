@@ -158,7 +158,7 @@ public:
 	geometry();
 	~geometry();
 
-	void initialize(int Ntyp0);
+	void initialize(int Ntyp0, unsigned long index_capacity = 1000000UL);
 
 	void update_index();
 

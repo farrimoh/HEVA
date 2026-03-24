@@ -117,7 +117,7 @@ int main(int argc, char **argv)
         fclose(paramfile);
     }
     fi = fopen("parameters_run.out", "a");
-    fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother\n");
+    fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [indexCapacity]\n");
     //fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCD ks0 dmu dummydg mudrug gdrug kd0                                 \n");
     fprintf(fi, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f\n",
             seed, g.epsilon[0], g.kappa[0], Phikappa, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], ks0, dmu, g.dg, g.mudrug, gdrug0, kd0, dg12, dg01, dg20, dg33, dg00, dgother);
@@ -155,8 +155,8 @@ int main(int argc, char **argv)
     fclose(fi);
 
     double ee = 0;
-    fprintf(stderr, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK LnZ ks0 muAB mudrugdrugProb kd0 sweep\n");
-    fprintf(stderr, "./source/assemble %lu %f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %lu\n", seed, g.epsilon[0], g.kappa[0], Phikappa, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], ks0, g.mu[1], g.dg, g.mudrug, gdrug0, kd0, sweep);
+    fprintf(stderr, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK LnZ ks0 muAB mudrugdrugProb kd0 sweep [indexCapacity]\n");
+    fprintf(stderr, "./source/assemble %lu %f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %lu %lu\n", seed, g.epsilon[0], g.kappa[0], Phikappa, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], ks0, g.mu[1], g.dg, g.mudrug, gdrug0, kd0, sweep, config.indexCapacity);
 
     for (int j = 0; j < 4; j++)
     {

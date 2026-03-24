@@ -96,7 +96,7 @@ geometry::~geometry()
 	}
 }
 
-void geometry::initialize(int Ntype0)
+void geometry::initialize(int Ntype0, unsigned long index_capacity)
 {
 	Test_assembly=0; // for trial runs =1
 	Nvlast=0;
@@ -152,8 +152,8 @@ void geometry::initialize(int Ntype0)
 		}
 	}
 
-	vidtoindex = new int[2000000000];
-	heidtoindex = new int[2000000000];
+	vidtoindex = new int[index_capacity];
+	heidtoindex = new int[index_capacity];
 	epsilon = new double[Ntype];
 	kappa = new double[Ntype];
 	kappaPhi = new double[Ntype];

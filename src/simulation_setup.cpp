@@ -6,7 +6,7 @@
 
 void apply_simulation_config(const SimulationConfig &config, geometry &g)
 {
-    g.initialize(4);
+    g.initialize(4, config.indexCapacity);
     g.all_neigh = 0;
 
     g.epsilon[0] = config.epsilon0;
