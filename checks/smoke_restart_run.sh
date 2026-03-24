@@ -6,17 +6,41 @@ restart_path="$(readlink -f "${2:?missing restart file path}")"
 
 workdir="$(mktemp -d /tmp/heva-smoke.XXXXXX)"
 output_dir="${workdir}/out"
+config_path="${workdir}/smoke.in"
 trap 'rm -rf "${workdir}"' EXIT
 
 mkdir -p "${output_dir}"
 
+cat > "${config_path}" <<EOF
+seed=521759
+epsilon0=4200.000
+kappa0=40.000
+kappaPhi0=800.000
+theta0=0.240
+theta1=0.480
+gb0=-9.480
+muCd=-10.800
+ks0=0.020000
+dmu=-3.500
+dg=0.100
+mudrug=0.000
+gdrug0=0.000
+kd0=0.000000
+dg12=0.300
+dg01=0.100
+dg20=-0.100
+dg33=0.000
+dg00=-0.800
+dgother=-0.950
+indexCapacity=1000000
+restart=${restart_path}
+outputDir=${output_dir}
+EOF
+
 pushd /tmp >/dev/null
 "${binary_path}" \
-  521759 4200.000 40.000 800.000 0.240 0.480 -9.480 -10.800 0.020000 -3.500 0.100 0.000 0.000 0.000000 0.300 0.100 -0.100 0.000 -0.800 -0.950 \
-  --index-capacity 1000000 \
+  --config "${config_path}" \
   --max-sweeps 5 \
-  --restart "${restart_path}" \
-  --output-dir "${output_dir}" \
   > "${workdir}/smoke.stdout" 2> "${workdir}/smoke.stderr"
 popd >/dev/null
 
