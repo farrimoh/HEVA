@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <sstream>
+#include <string>
 
 namespace
 {
@@ -56,15 +57,15 @@ bool parse_double_value(const char *text, double &value)
 
 std::string assemble_usage()
 {
-    return "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [indexCapacity] [maxSweeps]";
+    return "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--index-capacity N] [--max-sweeps N] [--restart PATH] [--output-dir PATH]";
 }
 
 bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, std::string &error_message)
 {
-    if (argc != 21 && argc != 22 && argc != 23)
+    if (argc < 21)
     {
         std::ostringstream message;
-        message << "Expected 20, 21, or 22 arguments after the executable name, got " << (argc - 1) << ".\n"
+        message << "Expected at least 20 arguments after the executable name, got " << (argc - 1) << ".\n"
                 << assemble_usage();
         error_message = message.str();
         return false;
@@ -72,6 +73,8 @@ bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, st
 
     config.indexCapacity = 1000000UL;
     config.maxSweeps = 0UL;
+    config.restartPath = "restart_lammps.dat";
+    config.outputDir = ".";
 
     if (!parse_unsigned_long(argv[1], config.seed))
     {
@@ -111,25 +114,50 @@ bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, st
         }
     }
 
-    if (argc == 22)
+    for (int i = 21; i < argc; )
     {
-        if (!parse_unsigned_long(argv[21], config.indexCapacity) || config.indexCapacity == 0 || config.indexCapacity > static_cast<unsigned long>(INT_MAX))
+        const std::string option = argv[i];
+        if (option == "--index-capacity")
         {
-            error_message = "Invalid value for indexCapacity.\n" + assemble_usage();
-            return false;
+            if (i + 1 >= argc || !parse_unsigned_long(argv[i + 1], config.indexCapacity) || config.indexCapacity == 0 || config.indexCapacity > static_cast<unsigned long>(INT_MAX))
+            {
+                error_message = "Invalid value for --index-capacity.\n" + assemble_usage();
+                return false;
+            }
+            i += 2;
         }
-    }
-    else if (argc == 23)
-    {
-        if (!parse_unsigned_long(argv[21], config.indexCapacity) || config.indexCapacity == 0 || config.indexCapacity > static_cast<unsigned long>(INT_MAX))
+        else if (option == "--max-sweeps")
         {
-            error_message = "Invalid value for indexCapacity.\n" + assemble_usage();
-            return false;
+            if (i + 1 >= argc || !parse_unsigned_long(argv[i + 1], config.maxSweeps))
+            {
+                error_message = "Invalid value for --max-sweeps.\n" + assemble_usage();
+                return false;
+            }
+            i += 2;
         }
-
-        if (!parse_unsigned_long(argv[22], config.maxSweeps))
+        else if (option == "--restart")
         {
-            error_message = "Invalid value for maxSweeps.\n" + assemble_usage();
+            if (i + 1 >= argc || argv[i + 1] == nullptr || *argv[i + 1] == '\0')
+            {
+                error_message = "Invalid value for --restart.\n" + assemble_usage();
+                return false;
+            }
+            config.restartPath = argv[i + 1];
+            i += 2;
+        }
+        else if (option == "--output-dir")
+        {
+            if (i + 1 >= argc || argv[i + 1] == nullptr || *argv[i + 1] == '\0')
+            {
+                error_message = "Invalid value for --output-dir.\n" + assemble_usage();
+                return false;
+            }
+            config.outputDir = argv[i + 1];
+            i += 2;
+        }
+        else
+        {
+            error_message = std::string("Unknown option: ") + option + ".\n" + assemble_usage();
             return false;
         }
     }

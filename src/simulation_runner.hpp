@@ -54,7 +54,12 @@ struct SimulationLoopSettings
 enum SimulationStopReason
 {
     SIMULATION_STOP_CLOSED = 0,
-    SIMULATION_STOP_MAX_SWEEPS = 1
+    SIMULATION_STOP_MAX_SWEEPS = 1,
+    SIMULATION_STOP_OVERLAP_ERROR = 2,
+    SIMULATION_STOP_MIXED_MORPH = 3,
+    SIMULATION_STOP_STALLED_GROWTH = 4,
+    SIMULATION_STOP_TOO_LONG = 5,
+    SIMULATION_STOP_TOO_LARGE = 6
 };
 
 SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &config);

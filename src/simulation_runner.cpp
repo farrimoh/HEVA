@@ -155,6 +155,36 @@ void print_final_summary(const geometry &g, double energy, unsigned long sweep, 
     cout << "#########  Nboundary " << g.Nboundary << " ##############" << endl;
     cout << "#########  Bound Triangle " << stats.boundtri << " ##############" << endl;
 }
+
+const char *stop_reason_label(SimulationStopReason stop_reason)
+{
+    switch (stop_reason)
+    {
+    case SIMULATION_STOP_CLOSED:
+        return "closed";
+    case SIMULATION_STOP_MAX_SWEEPS:
+        return "max_sweeps";
+    case SIMULATION_STOP_OVERLAP_ERROR:
+        return "overlap_error";
+    case SIMULATION_STOP_MIXED_MORPH:
+        return "mixed_morph";
+    case SIMULATION_STOP_STALLED_GROWTH:
+        return "stalled_growth";
+    case SIMULATION_STOP_TOO_LONG:
+        return "too_long";
+    case SIMULATION_STOP_TOO_LARGE:
+        return "too_large";
+    default:
+        return "unknown";
+    }
+}
+
+void write_stop_snapshot(geometry &g, FILE *ofile, unsigned long sweep, unsigned long seed, time_t start_time)
+{
+    int seconds = elapsed_seconds(start_time);
+    dump_analysis(g, ofile, sweep, seed, seconds);
+    dump_restart_lammps_data_file(g, sweep);
+}
 }
 
 SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &config)
@@ -413,7 +443,7 @@ SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile,
             {
                 cout << "error overlap" << endl;
                 dump_lammps_data_dimers(g, 5555555);
-                exit(-1);
+                return SIMULATION_STOP_OVERLAP_ERROR;
             }
         }
 
@@ -430,9 +460,8 @@ SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile,
                     g.update_boundary();
                     dump_lammps_data_dimers(g, 44444444);
                     dump_lammps_data_dimers(g, 11111111);
-                    int seconds = elapsed_seconds(start_time);
-                    dump_analysis(g, ofile, sweep, seed, seconds);
-                    exit(-1);
+                    write_stop_snapshot(g, ofile, sweep, seed, start_time);
+                    return SIMULATION_STOP_MIXED_MORPH;
                 }
             }
 
@@ -444,10 +473,8 @@ SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile,
                     g.update_boundary();
                     dump_lammps_data_dimers(g, 333333333);
                     dump_lammps_data_dimers(g, 11111111);
-                    dump_restart_lammps_data_file(g, sweep);
-                    int seconds = elapsed_seconds(start_time);
-                    dump_analysis(g, ofile, sweep, seed, seconds);
-                    exit(-1);
+                    write_stop_snapshot(g, ofile, sweep, seed, start_time);
+                    return SIMULATION_STOP_STALLED_GROWTH;
                 }
                 stats.lastNheGrowth = g.Nhe;
             }
@@ -460,10 +487,8 @@ SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile,
             fprintf(stderr, "STOP for now - too long\n");
             g.update_boundary();
             dump_lammps_data_dimers(g, 77777777);
-            dump_restart_lammps_data_file(g, sweep);
-            int seconds = elapsed_seconds(start_time);
-            dump_analysis(g, ofile, sweep, seed, seconds);
-            exit(-1);
+            write_stop_snapshot(g, ofile, sweep, seed, start_time);
+            return SIMULATION_STOP_TOO_LONG;
         }
 
         if (g.Nhe >= 310 || g.Nv >= 65)
@@ -472,10 +497,8 @@ SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile,
             g.update_boundary();
             dump_lammps_data_dimers(g, 88888888);
             dump_lammps_data_dimers(g, 11111111);
-            dump_restart_lammps_data_file(g, sweep);
-            int seconds = elapsed_seconds(start_time);
-            dump_analysis(g, ofile, sweep, seed, seconds);
-            exit(-1);
+            write_stop_snapshot(g, ofile, sweep, seed, start_time);
+            return SIMULATION_STOP_TOO_LARGE;
         }
 
         sweep++;
@@ -526,7 +549,7 @@ void finalize_simulation(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long s
     }
     else
     {
-        fprintf(stderr, "STOP for now - reached max sweeps limit\n");
+        fprintf(stderr, "STOP for now - %s\n", stop_reason_label(stop_reason));
         g.update_boundary();
     }
 
@@ -535,14 +558,7 @@ void finalize_simulation(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long s
     dump_restart_lammps_data_file(g, sweep);
 
     double energy = g.compute_energy();
-    if (stop_reason == SIMULATION_STOP_CLOSED)
-    {
-        print_final_summary(g, energy, sweep, start_time, stats, "closed");
-    }
-    else
-    {
-        print_final_summary(g, energy, sweep, start_time, stats, "max_sweeps");
-    }
+    print_final_summary(g, energy, sweep, start_time, stats, stop_reason_label(stop_reason));
 
     int seconds = elapsed_seconds(start_time);
     dump_analysis(g, ofile, sweep, seed, seconds);

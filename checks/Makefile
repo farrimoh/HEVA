@@ -21,7 +21,7 @@ $(TARGET): $(OBJECTS)
 
 smoke_run:
 	$(MAKE) -C ../src
-	bash ./smoke_restart_run.sh ../src/assemble ../test/restart_lammps.dat
+	bash ./smoke_restart_run.sh ../src/assemble ./fixtures/restart_lammps.dat
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)

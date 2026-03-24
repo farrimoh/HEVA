@@ -34,7 +34,12 @@
 
 #include <gsl/gsl_rng.h>
 
+#include <cerrno>
+#include <climits>
+#include <cstring>
 #include <iostream>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <string>
 #include <time.h>
 #include <unistd.h>
@@ -42,6 +47,79 @@
 using namespace std;
 
 gsl_rng *r;
+
+namespace
+{
+bool is_absolute_path(const std::string &path)
+{
+    return !path.empty() && path[0] == '/';
+}
+
+std::string join_paths(const std::string &left, const std::string &right)
+{
+    if (left.empty())
+    {
+        return right;
+    }
+    if (left == "/")
+    {
+        return "/" + right;
+    }
+    if (!left.empty() && left[left.size() - 1] == '/')
+    {
+        return left + right;
+    }
+    return left + "/" + right;
+}
+
+std::string resolve_path_from(const std::string &base_dir, const std::string &path)
+{
+    if (path.empty() || path == ".")
+    {
+        return base_dir;
+    }
+    if (is_absolute_path(path))
+    {
+        return path;
+    }
+    return join_paths(base_dir, path);
+}
+
+bool ensure_directory_exists(const std::string &path, std::string &error_message)
+{
+    if (path.empty())
+    {
+        error_message = "Output directory path cannot be empty.";
+        return false;
+    }
+
+    std::string current = is_absolute_path(path) ? "/" : "";
+    std::size_t start = is_absolute_path(path) ? 1 : 0;
+
+    while (start <= path.size())
+    {
+        std::size_t end = path.find('/', start);
+        std::string part = path.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        if (!part.empty())
+        {
+            current = current.empty() ? part : join_paths(current, part);
+            if (mkdir(current.c_str(), 0777) != 0 && errno != EEXIST)
+            {
+                error_message = std::string("Failed to create output directory '") + path + "': " + std::strerror(errno);
+                return false;
+            }
+        }
+
+        if (end == std::string::npos)
+        {
+            break;
+        }
+        start = end + 1;
+    }
+
+    return true;
+}
+}
 
 int main(int argc, char **argv)
 {
@@ -53,6 +131,36 @@ int main(int argc, char **argv)
     if (!parse_simulation_config(argc, argv, config, config_error))
     {
         std::cerr << config_error << std::endl;
+        return -1;
+    }
+
+    char cwd_buffer[PATH_MAX];
+    if (getcwd(cwd_buffer, sizeof(cwd_buffer)) == nullptr)
+    {
+        std::cerr << "Failed to resolve the current working directory: " << std::strerror(errno) << std::endl;
+        return -1;
+    }
+
+    const std::string launch_dir = cwd_buffer;
+    const std::string restart_path = resolve_path_from(launch_dir, config.restartPath);
+    const std::string output_dir = resolve_path_from(launch_dir, config.outputDir);
+
+    if (access(restart_path.c_str(), R_OK) != 0)
+    {
+        std::cerr << "Restart file is not readable: " << restart_path << std::endl;
+        return -1;
+    }
+
+    std::string path_error;
+    if (!ensure_directory_exists(output_dir, path_error))
+    {
+        std::cerr << path_error << std::endl;
+        return -1;
+    }
+
+    if (chdir(output_dir.c_str()) != 0)
+    {
+        std::cerr << "Failed to enter output directory '" << output_dir << "': " << std::strerror(errno) << std::endl;
         return -1;
     }
 
@@ -90,9 +198,9 @@ int main(int argc, char **argv)
     }
 
     fi = fopen("parameters_run.out", "a");
-    fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [indexCapacity] [maxSweeps]\n");
-    fprintf(fi, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f %lu %lu\n",
-            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, config.dmu, g.dg, g.mudrug, config.gdrug0, config.kd0, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.dgother, config.indexCapacity, config.maxSweeps);
+    fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--index-capacity N] [--max-sweeps N] [--restart PATH] [--output-dir PATH]\n");
+    fprintf(fi, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f --index-capacity %lu --max-sweeps %lu --restart %s --output-dir %s\n",
+            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, config.dmu, g.dg, g.mudrug, config.gdrug0, config.kd0, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.dgother, config.indexCapacity, config.maxSweeps, restart_path.c_str(), output_dir.c_str());
 
     for (int i = 0; i < g.Ntype; i++)
     {
@@ -126,9 +234,9 @@ int main(int argc, char **argv)
     fclose(fi);
 
     unsigned long sweep = 0;
-    fprintf(stderr, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK LnZ ks0 muAB mudrugdrugProb kd0 sweep [indexCapacity] [maxSweeps]\n");
-    fprintf(stderr, "./source/assemble %lu %f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %lu %lu %lu\n",
-            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, g.mu[1], g.dg, g.mudrug, config.gdrug0, config.kd0, sweep, config.indexCapacity, config.maxSweeps);
+    fprintf(stderr, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK LnZ ks0 muAB mudrugdrugProb kd0 sweep [--index-capacity N] [--max-sweeps N] [--restart PATH] [--output-dir PATH]\n");
+    fprintf(stderr, "./source/assemble %lu %f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %lu --index-capacity %lu --max-sweeps %lu --restart %s --output-dir %s\n",
+            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, g.mu[1], g.dg, g.mudrug, config.gdrug0, config.kd0, sweep, config.indexCapacity, config.maxSweeps, restart_path.c_str(), output_dir.c_str());
 
     for (int j = 0; j < 4; j++)
     {
@@ -137,9 +245,7 @@ int main(int argc, char **argv)
 
     SimulationRunStats stats;
     SimulationLoopSettings settings = make_simulation_loop_settings(config);
-    const char filename[] = "restart_lammps.dat";
-
-    initialize_from_restart(g, r, filename, sweep, stats, settings);
+    initialize_from_restart(g, r, restart_path.c_str(), sweep, stats, settings);
     SimulationStopReason stop_reason = run_simulation_loop(g, r, ofile, config.seed, timer1, sweep, config.ks0, stats, settings);
     finalize_simulation(g, r, ofile, config.seed, timer1, sweep, stats, settings, stop_reason);
 
