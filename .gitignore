@@ -1,2 +1,5 @@
 test*
 .local/
+*.o
+assemble
+checks/test_simulation_config

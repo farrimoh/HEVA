@@ -29,7 +29,10 @@
 
 #include "geometry.hpp"
 #include "montecarlo.hpp"
+#include "simulation_config.hpp"
+#include "simulation_setup.hpp"
 #include <iostream>
+#include <string>
 #include <vector>
 #include <gsl/gsl_rng.h>
 #include <math.h>
@@ -45,11 +48,12 @@ int main(int argc, char **argv)
     int seconds;
     time(&timer1);
 
-    if (argc != 21)
+    SimulationConfig config;
+    std::string config_error;
+    if (!parse_simulation_config(argc, argv, config, config_error))
     {
-        fprintf(stderr, "%d", argc);
-        fprintf(stderr, "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother\n");
-        exit(-1);
+        std::cerr << config_error << std::endl;
+        return -1;
     }
 
     int minHE_update_neigh = 150;
@@ -63,131 +67,32 @@ int main(int argc, char **argv)
     const gsl_rng_type *t;
     t = gsl_rng_taus2;
     r = gsl_rng_alloc(t);
-    long unsigned int seed = atoi(argv[1]);
+    long unsigned int seed = config.seed;
     srand((unsigned)seed);
     gsl_rng_set(r, seed);
     cout << "HERE " << endl;
-    //const double pi = 4*atan(1);
+
+    double Phikappa = config.kappaPhi0;
+    double dmu = config.dmu;
+    double ks0 = config.ks0;
+    double gdrug0 = config.gdrug0;
+    double kd0 = config.kd0;
+    double dg12 = config.dg12;
+    double dg01 = config.dg01;
+    double dg20 = config.dg20;
+    double dg33 = config.dg33;
+    double dg00 = config.dg00;
+    double dgother = config.dgother;
+
     geometry g;
-    g.initialize(4);
-    g.all_neigh = 0;
-
-    
-
-    g.epsilon[0] = atof(argv[2]);
-    g.epsilon[1] = g.epsilon[0];
-    g.epsilon[2] = g.epsilon[0];
-    g.epsilon[3] = g.epsilon[0];
-    g.kappa[0] = atof(argv[3]);
-    g.kappa[1] = g.kappa[0];
-    g.kappa[2] = g.kappa[0];
-    g.kappa[3] = g.kappa[0];
-    double Phikappa = atof(argv[4]);
-    g.kappaPhi[0] = Phikappa; // CD-CD DC-DC and all other
-    g.kappaPhi[1] = Phikappa; //BA-AB
-    g.kappaPhi[2] = Phikappa; //AB-CD and AB-DC
-    g.kappaPhi[3] = Phikappa; //with drug
-    g.theta0[0] = atof(argv[5]);
-    g.theta0[1] = atof(argv[6]);
-    g.theta0[2] = g.theta0[0]; //0.1;  // CD-CD
-    g.theta0[3] = g.theta0[0]; //0.1 ; //349 ;
-
-    g.gb0 = atof(argv[7]);
-
-    /* MU parameters */
-    double dmu = atof(argv[10]);
-    g.mu[0] = atof(argv[8]);
-    g.mu[3] = g.mu[0];
-    g.mu[1] = g.mu[0] + dmu;
-    g.mu[2] = g.mu[1];
-
-    double ks0 = atof(argv[9]);
-
-    g.dg = atof(argv[11]);
-
-    /* Drug parameteres */
-    g.mudrug = atof(argv[12]);
-    double gdrug0 = atof(argv[13]);
-    double kd0 = atof(argv[14]);
-
-
-    // gaussian
-    double alp=1;
-    
-    g.l_thermal_kappa = sqrt((3.0*g.l0[0]*g.l0[0]*alp*g.T/(2.0*g.kappa[0])));
-    g.theta_thermal_kappa = sqrt(2.0*(alp*g.T/(g.kappa[0])));
-    g.l_thermal_sigma = sqrt(2.0*(alp*g.T/g.epsilon[0]));
-    //g.l_thermal_sigma = g.l_thermal_kappa;//sqrt(2.0*(alp*g.T/g.epsilon[0]));
-    g.gaussian_sigma = 0.5 * g.l_thermal_kappa; 
+    apply_simulation_config(config, g);
 
     cout << "l_thermal_sigma is " << g.l_thermal_sigma<<endl;
     cout << "l_thermal_kappa is " << g.l_thermal_kappa<<endl;
     cout << "theta_thermal_kappa is " << g.theta_thermal_kappa<<endl;
     cout << "gaussian sigma " << g.gaussian_sigma <<endl;
-    //exit(-1);
-
-    /* GB parameteres */
-    double dg12 = atof(argv[15]); //BA-AB
-    double dg01 = atof(argv[16]); //CD-BA
-    double dg20 = atof(argv[17]); //AB-CD
-    double dg33 = atof(argv[18]);
-    double dg00 = atof(argv[19]);
-    double dgother = atof(argv[20]);
-
-    for (int i = 0; i < g.Ntype; i++)
-    {
-        for (int j = 0; j < g.Ntype; j++)
-        {
-
-            if (i == 1 && j == 2) // BA-AB
-                g.gb[i][j] = (1 + dg12) * g.gb0;
-            else if (i == 0 && j == 1) // CD-AB (T3)
-                g.gb[i][j] = (1 + dg01) * g.gb0;
-            else if (i == 3 && j == 1) // DC-AB
-                g.gb[i][j] = (1 + dg01) * g.gb0;
-            else if (i == 2 && j == 0) // AB-DC
-                g.gb[i][j] = (1 + dg20) * g.gb0;
-            else if (i == 2 && j == 3) //
-                g.gb[i][j] = (1 + dg20) * g.gb0;
-            else if (i == 3 && j == 3) //
-                g.gb[i][j] = (1 + dg33) * g.gb0;
-            else if (i == 0 && j == 0) //
-                g.gb[i][j] = (1 + dg00) * g.gb0;
-            else if (i == 0 && j == 3)
-                g.gb[i][j] = (1 + dg00) * g.gb0;
-            else if (i == 3 && j == 0)
-                g.gb[i][j] = (1 + dg00) * g.gb0;
-            else
-                g.gb[i][j] = (1 + dgother) * g.gb0;
-        }
-    }
-
-    for (int i = 0; i < g.Ntype; i++)
-    {
-        for (int j = 0; j < g.Ntype; j++)
-        {
-
-            if (j == 3 || j == 0)
-                g.gdrug[i][j] = gdrug0;
-            else
-                g.gdrug[i][j] = 0;
-        }
-    }
 
     long unsigned int sweep = 0;
-
-    g.l0[0] = 1.05;
-    g.l0[1] = .95;
-    g.l0[2] = .95;
-    g.l0[3] = 1.05;
-    g.phi0[0] = 1.05;
-    g.phi0[1] = 1.17;
-    g.phi0[2] = .98;
-    g.phi0[3] = 1.05;
-
-    g.xi = .5;
-    g.T = 1;
-    g.Nd = 0;
 
     int ind, e;
 
