@@ -52,3 +52,6 @@
 
 - [bugfix] 08:22 Phase A stabilized index-capacity handling behind clear run modes
   - [2026-03-25-0822-phase-a-run-mode-and-capacity-policy.md](./sessions/2026-03-25-0822-phase-a-run-mode-and-capacity-policy.md)
+
+- [test] 08:30 Phase B added an open-shell fixture and explicit max-sweeps coverage
+  - [2026-03-25-0830-phase-b-open-shell-max-sweeps.md](./sessions/2026-03-25-0830-phase-b-open-shell-max-sweeps.md)
