@@ -1,87 +1,62 @@
 # GCMC HEVA
-**G**rand **C**anonical **M**onte **C**arlo Simulations using **H**alf **E**dge data-structure for **V**irus **A**ssembly
+**G**rand **C**anonical **M**onte **C**arlo Simulations using **H**alf **E**dge data structure for **V**irus **A**ssembly
 
 ![Hepatitis-B Capsids](HBV.jpg)
 
 ## Overview
-This repository contains the implementation of a Grand Canonical Monte Carlo (GCMC) simulation framework for studying virus capsid assembly, specifically focusing on the Hepatitis B Virus (HBV). The codebase utilizes a half-edge data structure for efficient geometric computations and assembly simulations.
+This repository contains the implementation of a Grand Canonical Monte Carlo (GCMC) simulation framework for studying virus capsid assembly, specifically focusing on the Hepatitis B Virus (HBV). It combines:
+
+- a coarse-grained capsid assembly model
+- a half-edge data structure for geometry and topology
+- Monte Carlo moves for growth, removal, fusion, and conformation changes
+- explicit run directories with reproducibility artifacts
+
+For the scientific background, see:
+[Multiscale Modeling of Hepatitis B Virus Capsid Assembly and Its Dimorphism](https://pubs.acs.org/doi/10.1021/acsnano.2c02119)
 
 ## Model Description
 The simulation framework implements a multiscale model of HBV capsid assembly that:
-- Represents capsid proteins and their interactions at a coarse-grained level
-- Incorporates thermodynamic and kinetic aspects of assembly
-- Accounts for the dimorphic nature of HBV capsids (T=3 and T=4)
-- Uses GCMC to sample different assembly states and configurations
+
+- represents capsid proteins and their interactions at a coarse-grained level
+- incorporates thermodynamic and kinetic aspects of assembly
+- accounts for the dimorphic nature of HBV capsids, including T=3 and T=4 outcomes
+- uses Grand Canonical Monte Carlo to sample different assembly states and configurations
 
 ### Key Features
-- **Half-edge Data Structure**: Efficient representation of dimer subunits using a doubly connected edge list (DCEL)
-- **Two Edge Types**: 
-  - AB edge (AB and BA half-edges) representing AB dimer conformation
-  - CD edge (CD and DC half-edges) representing CD/CC dimer conformation
-- **Conformation-Dependent Interactions**: Different binding affinities for various dimer-dimer interactions
-- **Elastic Energy Model**: Incorporates stretching, bending, and binding angle moduli
+- **Half-edge data structure**
+  Efficient representation of dimer subunits using a doubly connected edge list
 
+- **Conformation-dependent interactions**
+  Different dimer-dimer interfaces can carry different binding affinities
+
+- **Elastic energy model**
+  Stretching, bending, and binding-angle penalties are included in the Hamiltonian
+
+- **HBV polymorphism**
+  The model is designed to capture competition between T=3 and T=4 assembly outcomes
 
 ## Key Findings
-Our model captures key biophysical characteristics of HBV capsid assembly and offers insights into its polymorphic behavior. Specifically, we observe:
+The model is designed to probe how assembly outcomes depend on:
 
-1. **Assembly Pathways**: The simulation framework reproduces experimentally observed assembly trajectories, including the formation of both T=3 and T=4 icosahedral capsids.
+- conformational energetics
+- dimer-dimer binding specificity
+- geometry and elastic frustration
+- kinetic accessibility of competing growth pathways
 
-2. **Polymorphism Control**: The model highlights how capsid polymorphism emerges from a combination of factors:
+In the associated study, the model reproduces experimentally observed assembly behavior, including competition between T=3 and T=4 capsids and shifts in assembly outcome under changing conditions such as ionic strength.
 
-- The underlying conformational energy landscape 
-- Variations in dimer-dimer binding affinities
-- Coupling between protein conformation and interaction specificity
+## Project Documentation
+For build, run, configuration, output-file, and architecture details, see `docs/`:
 
-3. **Ionic Strength Effects**: Simulations reveal that higher ionic strengths favor the assembly of T=3 structures, suggesting a shift in conformational equilibrium toward CD dimer formation under these conditions.
-
-For a more detailed discussion of the model and results, see our publication:
-[Multiscale Modeling of Hepatitis B Virus Capsid Assembly and Its Dimorphism](https://pubs.acs.org/doi/10.1021/acsnano.2c02119)
-
-## Implementation Details
-### Dependencies
-- GSL (GNU Scientific Library)
-- C++ compiler with C++11 support
-- Make build system
-
-### Building the Project
-1. Install dependencies:
-
-   ```bash
-   # Linux (Ubuntu/Debian)
-   sudo apt-get update
-   sudo apt-get install libgsl-dev g++ make
-   ```
-
-2. Build the project:
-   ```bash
-   cd src
-   make clean
-   make assembly
-   ```
-
-### Code Structure
-- `src/geometry.cpp/hpp`: Geometric computations and half-edge data structure
-- `src/montecarlo.cpp/hpp`: Monte Carlo simulation implementation
-- `src/tri_tri_intersect.cpp/hpp`: Triangle intersection detection
-- `src/run_assembly.cpp`: Main simulation driver
-
-### Monte Carlo Moves
-The simulation includes several MC moves:
-1. Vertex displacement
-2. Single edge addition/removal
-3. Paired edge addition/removal
-4. Simple boundary binding/unbinding
-5. Wedge fusion/fission
-6. Conformational switch
-
-
-## Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
+- [docs/running-heva.md](docs/running-heva.md)
+- [docs/config-format.md](docs/config-format.md)
+- [docs/output-files.md](docs/output-files.md)
+- [docs/architecture.md](docs/architecture.md)
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See `LICENSE`.
 
 ## Citation
 If you use this code in your research, please cite:
-Farzaneh Mohajerani, Botond Tyukodi, Christopher J. Schlicksup, Jodi A. Hadden-Perilla, Adam Zlotnick, and Michael F. Hagan. "Multiscale Modeling of Hepatitis B Virus Capsid Assembly and Its Dimorphism." ACS Nano 16, no. 9 (2022): 13845–13859. https://doi.org/10.1021/acsnano.2c02119.
+
+Farzaneh Mohajerani, Botond Tyukodi, Christopher J. Schlicksup, Jodi A. Hadden-Perilla, Adam Zlotnick, and Michael F. Hagan. "Multiscale Modeling of Hepatitis B Virus Capsid Assembly and Its Dimorphism." ACS Nano 16, no. 9 (2022): 13845-13859. https://doi.org/10.1021/acsnano.2c02119.
