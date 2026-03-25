@@ -28,6 +28,7 @@
  */
 
 #include "geometry.hpp"
+#include "seed_initialization.hpp"
 #include "tri_tri_intersect.hpp"
 #include <iostream>
 #include <vector>
@@ -5717,6 +5718,11 @@ void make_initial_pentamer(geometry &g)
 	//exit(-1);
 	//int vind=-1;
 	g.update_boundary();
+}
+
+void make_initial_hexamer(geometry &g)
+{
+	g.make_hexamer();
 }
 
 int check_bind_triangle(geometry &g) //

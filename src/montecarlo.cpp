@@ -38,32 +38,6 @@
 using namespace std;
 const double Pi  =3.141592653589793238463;
 
-namespace
-{
-bool add_seed_dimers(geometry &g, gsl_rng *r, int count)
-{
-    double distance_vector[3] = {0.0, 0.0, 0.0};
-    for (int i = 0; i < count; ++i)
-    {
-        g.update_boundary();
-        if (g.boundary.empty())
-        {
-            return false;
-        }
-
-        const int heid = g.boundary.back();
-        if (g.add_dimer(heid, r, 0, 1, distance_vector) < 0)
-        {
-            return false;
-        }
-    }
-
-    g.update_boundary();
-    return true;
-}
-}
-
-
 void move_vertex(geometry &g, gsl_rng *r)
 {
     //std::cout << "inin move_vertex"<<endl;
@@ -4206,33 +4180,6 @@ void get_dimer_etypes(int etypeheid0, int etypenew1, int etypenew2, gsl_rng *r)
     //std::cout << "new types are etypenew1= " <<etypenew1 << " etypenew2 "  << etypenew2<<endl;
     //etypenew1=gsl_rng_uniform_int(r,4);
     //etypenew2=gsl_rng_uniform_int(r,4);
-}
-
-bool make_seed(geometry &g, gsl_rng *r, const std::string &seed_config)
-{
-    if (seed_config == "triangle")
-    {
-        make_initial_triangle(g);
-        return true;
-    }
-
-    if (seed_config == "pentamer")
-    {
-        make_initial_triangle(g);
-        return add_seed_dimers(g, r, 2);
-    }
-
-    if (seed_config == "hexamer")
-    {
-        make_initial_triangle(g);
-        return add_seed_dimers(g, r, 3);
-    }
-
-    return false;
-}
-
-void make_seed_T3(geometry &g, gsl_rng *r)
-{
 }
 
 int force_add_monomer_with_next(geometry &g, int heid0, int xid, gsl_rng *r)

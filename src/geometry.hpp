@@ -394,10 +394,6 @@ void recenter(geometry &g);
 
 int surfclosev(geometry &g);
 
-void make_initial_triangle(geometry &g);
-
-void make_initial_pentamer(geometry &g);
-
 int check_bind_triangle(geometry &g);
 
 void dump_analysis(geometry &g, FILE *ofile, int sweep, int seed, int seconds);

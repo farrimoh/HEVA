@@ -70,8 +70,6 @@ int attempt_unbind_triangle(geometry &g, int heid0, gsl_rng *r);
 
 int attempt_add_drug(geometry &g, int heid0, gsl_rng *r);
 int attempt_remove_drug(geometry &g, int heid0, gsl_rng *r);
-bool make_seed(geometry &g, gsl_rng *r, const std::string &seed_config);
-void make_seed_T3(geometry &g, gsl_rng *r);
 void get_dimer_etypes(int etypeheid0, int etypenew1, int etypenew2, gsl_rng *r);
 int force_add_monomer_with_next(geometry &g, int heid0, int xid,gsl_rng *r);
 
