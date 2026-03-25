@@ -233,7 +233,7 @@ void initialize_from_seed(geometry &g, gsl_rng *rng, const char *seed_config, un
     const std::string config = seed_config == nullptr ? "" : seed_config;
     if (!make_seed(g, rng, config))
     {
-        std::cerr << "Unknown seed configuration: " << config << std::endl;
+        std::cerr << "Failed to initialize seed configuration: " << config << std::endl;
         std::exit(-1);
     }
 

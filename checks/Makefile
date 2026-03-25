@@ -12,7 +12,7 @@ INVARIANT_TARGET := test_geometry_invariants
 
 all: $(TARGET)
 
-.PHONY: smoke_run regression_run invariants_run capacity_policy_run open_shell_run test_all
+.PHONY: smoke_run regression_run invariants_run capacity_policy_run open_shell_run seed_init_run test_all
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $@
@@ -42,11 +42,16 @@ open_shell_run:
 	$(MAKE) -C ../src
 	bash ./open_shell_max_sweeps.sh ../src/assemble ./fixtures/open_shell_restart_lammps.dat
 
+seed_init_run:
+	$(MAKE) -C ../src
+	bash ./seed_init_modes.sh ../src/assemble
+
 test_all: $(TARGET) $(INVARIANT_TARGET)
 	./$(TARGET)
 	./$(INVARIANT_TARGET)
 	$(MAKE) capacity_policy_run
 	$(MAKE) open_shell_run
+	$(MAKE) seed_init_run
 	$(MAKE) smoke_run
 	$(MAKE) regression_run
 

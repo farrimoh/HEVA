@@ -64,3 +64,6 @@
 
 - [feature] 09:05 Phase E cleaned up geometry-owned nested heap allocations
   - [2026-03-25-0905-phase-e-geometry-memory-cleanup.md](./sessions/2026-03-25-0905-phase-e-geometry-memory-cleanup.md)
+
+- [bugfix] 10:07 Deterministic pentamer and hexamer seed initialization restored and tested
+  - [2026-03-25-1007-deterministic-pentamer-hexamer-seeds.md](./sessions/2026-03-25-1007-deterministic-pentamer-hexamer-seeds.md)

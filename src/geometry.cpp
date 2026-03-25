@@ -1543,6 +1543,9 @@ int geometry::force_add_dimer(int heid0, double *newv, int typenext, int typepre
 	double *tempv2 = new double[3];
 	int success = 1;
 	int heindex0 = heidtoindex[heid0];
+	int nextboundary = he[heindex0].nextid_boundary;
+	int prevboundary = he[heindex0].previd_boundary;
+	int bi = he[heindex0].boundary_index;
 	//cout << newv[0]<<endl;
 	//exit(-1);
 	cout << "heindex0" << heindex0 << endl;
@@ -1600,6 +1603,12 @@ int geometry::force_add_dimer(int heid0, double *newv, int typenext, int typepre
 	update_half_edge(Nhelast - 1);
 	update_half_edge(Nhelast - 3);
 
+	he[heidtoindex[Nhelast - 1]].boundary_index = bi;
+	he[heidtoindex[Nhelast - 3]].boundary_index = bi;
+	set_prev_next_boundary(prevboundary, Nhelast - 1);
+	set_prev_next_boundary(Nhelast - 3, nextboundary);
+	set_prev_next_boundary(Nhelast - 1, Nhelast - 3);
+
 	//cout << " set prevoius next (heid0) " << heid0 << he[Nhe-2].id <<he[Nhe-4].id <<endl;
 
 	update_boundary();
@@ -1622,17 +1631,17 @@ int geometry::remove_dimer(int heindex0, int heindexnext0)
 
 void geometry::make_hexamer()
 {
-	/*make_triangle();
+	make_initial_triangle(*this);
 	update_boundary();
-    update_normals();
+	update_normals();
 
 	//for (int i=0; i<5; i++){ // make pentamer
-	double *vco;
+	double *vco = new double[3];
 	new_vertex(Nhe-1,vco);
 	 
 	force_add_dimer(Nhe-1,vco,1,1);
 	update_boundary();
-    update_normals();
+	update_normals();
 	cout << "1 dimer added" <<endl;
 	new_vertex(Nhe-1,vco);
 	force_add_dimer(Nhe-1,vco,1,0);
@@ -1647,19 +1656,18 @@ void geometry::make_hexamer()
 	new_vertex(Nhe-1,vco);
 	force_add_dimer(Nhe-1,vco,1,1);
 	update_boundary();
-    update_normals();
+	update_normals();
 	cout << "4 dimer added" <<endl;
 	force_add_monomer(1,Nhe-1,1);
 	update_boundary();
-    update_normals();
+	update_normals();
 	delete[] vco;
-        //for (int rstep=0; rstep<100; rstep++){
-        //    move_vertex(g,r);
-		//    g.update_boundary();
-            //dump_lammps_data_file(g, frame++);
-        //} 
-        //dump_lammps_data_file(g, frame++);
-	*/
+	        //for (int rstep=0; rstep<100; rstep++){
+	        //    move_vertex(*this,r);
+			//    update_boundary();
+	            //dump_lammps_data_file(g, frame++);
+	        //} 
+	        //dump_lammps_data_file(g, frame++);
 }
 
 void geometry::he_initialize(int heindex, int heid0, int vin0, int vout0, int etype, int b_index)
@@ -1866,6 +1874,15 @@ int geometry::force_add_monomer(int nextofnewid, int prevofnewid, int etype)
 	//cout << "in add_monomer" << "heid1 is nextofnewid " << heid1 <<endl;
 	int heprevindex = heidtoindex[heid0]; // this is prev for new edge
 	int henextindex = heidtoindex[heid1]; // this is going to be next of new edge
+	int biprev = he[heprevindex].boundary_index;
+	int binext = he[henextindex].boundary_index;
+	if (biprev != binext)
+	{
+		cout << "boundary index not matching. " << endl;
+		exit(-1);
+	}
+	int bound_nextid = he[heprevindex].nextid_boundary;
+	int bound_previd = he[henextindex].previd_boundary;
 	int newvin = he[heprevindex].vout;
 	int newvout = he[henextindex].vin;
 
@@ -1881,6 +1898,13 @@ int geometry::force_add_monomer(int nextofnewid, int prevofnewid, int etype)
 	update_half_edge(heid0);
 	update_half_edge(Nhelast - 2);
 	update_half_edge(Nhelast - 1);
+	he[heprevindex].boundary_index = -1;
+	he[henextindex].boundary_index = -1;
+	he[heidtoindex[Nhelast - 1]].boundary_index = biprev;
+	set_prev_next_boundary(Nhelast - 1, bound_nextid);
+	set_prev_next_boundary(bound_previd, Nhelast - 1);
+	update_boundary();
+	update_normals();
 	//update_boundary();
 	//delete[] tempv1; delete[] tempv2;
 	return 1;
