@@ -118,21 +118,41 @@ bool ensure_directory_exists(const std::string &path, std::string &error_message
     return true;
 }
 
-void write_invocation(FILE *stream, const SimulationConfig &config, const geometry &g, unsigned long sweep, const std::string &restart_path, const std::string &output_dir)
+std::string relative_to_output_dir_or_absolute(const std::string &output_dir, const std::string &path)
 {
-    if (config.runMode == "extended")
+    const std::string prefix = output_dir == "/" ? "/" : output_dir + "/";
+    if (path == output_dir)
     {
-        fprintf(stream, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f --run-mode %s --index-capacity %lu --max-sweeps %lu --init %s --seed-config %s --restart %s --output-dir %s\n",
-                config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, config.dmu, g.dg, g.mudrug, config.gdrug0, config.kd0, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.dgother, config.runMode.c_str(), config.indexCapacity, config.maxSweeps, config.initMode.c_str(), config.seedConfig.c_str(), restart_path.c_str(), output_dir.c_str());
+        return ".";
+    }
+    if (path.find(prefix) == 0)
+    {
+        return path.substr(prefix.size());
+    }
+    return path;
+}
+
+SimulationConfig make_persisted_run_config(const SimulationConfig &config, const std::string &restart_path, const std::string &output_dir)
+{
+    SimulationConfig persisted = config;
+    persisted.runtime.outputDir = ".";
+    if (persisted.initialization.mode == "restart")
+    {
+        persisted.initialization.restartPath = relative_to_output_dir_or_absolute(output_dir, restart_path);
     }
     else
     {
-        fprintf(stream, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f --run-mode %s --max-sweeps %lu --init %s --seed-config %s --restart %s --output-dir %s\n",
-                config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, config.dmu, g.dg, g.mudrug, config.gdrug0, config.kd0, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.dgother, config.runMode.c_str(), config.maxSweeps, config.initMode.c_str(), config.seedConfig.c_str(), restart_path.c_str(), output_dir.c_str());
+        persisted.initialization.restartPath = "restart_lammps.dat";
     }
+    return persisted;
+}
 
-    fprintf(stream, "# effective run mode=%s index_capacity=%lu sweep=%lu\n",
-            config.runMode.c_str(), config.indexCapacity, sweep);
+void write_invocation(FILE *stream, const SimulationConfig &config, unsigned long sweep)
+{
+    const std::string rendered = render_simulation_config(config);
+    fprintf(stream, "# normalized run configuration\n%s", rendered.c_str());
+    fprintf(stream, "\n# effective engine.profile=%s engine.indexCapacity=%lu sweep=%lu\n",
+            config.engine.runMode.c_str(), config.engine.indexCapacity, sweep);
 }
 }
 
@@ -157,10 +177,10 @@ int main(int argc, char **argv)
     }
 
     const std::string launch_dir = cwd_buffer;
-    const std::string restart_path = resolve_path_from(launch_dir, config.restartPath);
-    const std::string output_dir = resolve_path_from(launch_dir, config.outputDir);
+    const std::string restart_path = resolve_path_from(launch_dir, config.initialization.restartPath);
+    const std::string output_dir = resolve_path_from(launch_dir, config.runtime.outputDir);
 
-    if (config.initMode == "restart" && access(restart_path.c_str(), R_OK) != 0)
+    if (config.initialization.mode == "restart" && access(restart_path.c_str(), R_OK) != 0)
     {
         std::cerr << "Restart file is not readable: " << restart_path << std::endl;
         return -1;
@@ -175,8 +195,8 @@ int main(int argc, char **argv)
 
     const gsl_rng_type *t = gsl_rng_taus2;
     gsl_rng *rng = gsl_rng_alloc(t);
-    srand((unsigned)config.seed);
-    gsl_rng_set(rng, config.seed);
+    srand((unsigned)config.runtime.seed);
+    gsl_rng_set(rng, config.runtime.seed);
     cout << "HERE " << endl;
 
     geometry g;
@@ -190,29 +210,23 @@ int main(int argc, char **argv)
 
     FILE *ofile;
     FILE *fi;
-    FILE *paramfile;
     const std::string energy_path = join_paths(output_dir, "energy.dat");
-    const std::string allparam_path = join_paths(output_dir, "allparam.dat");
+    const std::string run_config_path = join_paths(output_dir, "run_config.out");
     const std::string parameters_path = join_paths(output_dir, "parameters_run.out");
+    const SimulationConfig persisted_config = make_persisted_run_config(config, restart_path, output_dir);
     g.dump_parameters();
     ofile = fopen(energy_path.c_str(), "a");
-    if (access(energy_path.c_str(), F_OK) != -1)
-    {
-        fprintf(stderr, " log files exist\n");
-        cout << " file openned" << endl;
-    }
-    else
-    {
-        paramfile = fopen(allparam_path.c_str(), "a");
-        fprintf(paramfile, "# seed, g.epsilon[0], g.kappa[0], g.theta0[0],g.theta0[1], g.gb0, g.mu[0], g.mu[1], dgother,  dg12, dg01,dg20,dg33,dg00 , ks0,g.theta0[2],kd0,gdrug0, g.mudrug \n");
-        fprintf(paramfile, "%lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f  %.6f %.3f %.6f %.3f %.3f",
-                config.seed, g.epsilon[0], g.kappa[0], g.theta0[0], g.theta0[1], g.gb0, g.mu[0], g.mu[1], config.dgother, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.ks0, g.theta0[2], config.kd0, config.gdrug0, g.mudrug);
-        fclose(paramfile);
-    }
+    fprintf(stderr, " log files exist\n");
+    cout << " file openned" << endl;
+
+    fi = fopen(run_config_path.c_str(), "w");
+    const std::string rendered_config = render_simulation_config(persisted_config);
+    fprintf(fi, "%s", rendered_config.c_str());
+    fclose(fi);
 
     fi = fopen(parameters_path.c_str(), "a");
-    fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n");
-    write_invocation(fi, config, g, 0UL, restart_path, output_dir);
+    fprintf(fi, "%s\n", assemble_usage().c_str());
+    write_invocation(fi, persisted_config, 0UL);
 
     for (int i = 0; i < g.Ntype; i++)
     {
@@ -246,8 +260,8 @@ int main(int argc, char **argv)
     fclose(fi);
 
     unsigned long sweep = 0;
-    fprintf(stderr, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK LnZ ks0 muAB mudrugdrugProb kd0 sweep [--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n");
-    write_invocation(stderr, config, g, sweep, restart_path, output_dir);
+    fprintf(stderr, "%s\n", assemble_usage().c_str());
+    write_invocation(stderr, persisted_config, sweep);
 
     for (int j = 0; j < 4; j++)
     {
@@ -256,16 +270,16 @@ int main(int argc, char **argv)
 
     SimulationRunStats stats;
     SimulationLoopSettings settings = make_simulation_loop_settings(config);
-    if (config.initMode == "restart")
+    if (config.initialization.mode == "restart")
     {
         initialize_from_restart(g, rng, restart_path.c_str(), sweep, stats, settings);
     }
     else
     {
-        initialize_from_seed(g, rng, config.seedConfig.c_str(), sweep, stats, settings);
+        initialize_from_seed(g, rng, config.initialization.seedConfig.c_str(), sweep, stats, settings);
     }
-    SimulationStopReason stop_reason = run_simulation_loop(g, rng, ofile, config.seed, timer1, sweep, config.ks0, stats, settings);
-    finalize_simulation(g, rng, ofile, config.seed, timer1, sweep, stats, settings, stop_reason);
+    SimulationStopReason stop_reason = run_simulation_loop(g, rng, ofile, config.runtime.seed, timer1, sweep, config.simulation.ks0, stats, settings);
+    finalize_simulation(g, rng, ofile, config.runtime.seed, timer1, sweep, stats, settings, stop_reason);
 
     fclose(ofile);
     gsl_rng_free(rng);

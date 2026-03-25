@@ -15,29 +15,40 @@ run_seed_mode() {
   mkdir -p "${output_dir}"
 
   cat > "${config_path}" <<EOF
-seed=521759
+[capsid_geometry]
 epsilon0=4200.000
 kappa0=40.000
 kappaPhi0=800.000
 theta0=0.240
 theta1=0.480
 gb0=-9.480
-muCd=-10.800
-ks0=0.020000
-dmu=-3.500
-dg=0.100
-mudrug=0.000
-gdrug0=0.000
-kd0=0.000000
 dg12=0.300
 dg01=0.100
 dg20=-0.100
 dg33=0.000
 dg00=-0.800
 dgother=-0.950
-runMode=test
-init=${mode}
+
+[simulation]
+muCd=-10.800
+ks0=0.020000
+dmu=-3.500
+dg=0.100
+
+[drug]
+mudrug=0.000
+gdrug0=0.000
+kd0=0.000000
+
+[init]
+mode=${mode}
+
+[runtime]
+seed=521759
 outputDir=${output_dir}
+
+[engine]
+profile=test
 EOF
 
   "${binary_path}" --config "${config_path}" --max-sweeps 1 > "${workdir}/stdout.txt" 2> "${workdir}/stderr.txt"

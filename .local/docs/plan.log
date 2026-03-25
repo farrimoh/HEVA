@@ -67,3 +67,6 @@
 
 - [bugfix] 10:07 Deterministic pentamer and hexamer seed initialization restored and tested
   - [2026-03-25-1007-deterministic-pentamer-hexamer-seeds.md](./sessions/2026-03-25-1007-deterministic-pentamer-hexamer-seeds.md)
+
+- [feature] 14:01 Categorized config format and canonical run-config output adopted
+  - [2026-03-25-1401-categorized-config-and-run-config-output.md](./sessions/2026-03-25-1401-categorized-config-and-run-config-output.md)

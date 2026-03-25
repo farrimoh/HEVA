@@ -7,7 +7,6 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <vector>
 
 namespace
 {
@@ -15,14 +14,7 @@ const unsigned long kMinimumIndexCapacity = 1000000UL;
 const unsigned long kTestIndexCapacity = 1000000UL;
 const unsigned long kRunIndexCapacity = 2000000UL;
 
-struct FieldSpec
-{
-    int index;
-    const char *name;
-    double *value;
-};
-
-struct ConfigFieldSpec
+struct NumericFieldSpec
 {
     const char *name;
     double *value;
@@ -136,13 +128,13 @@ bool parse_double_string(const std::string &text, double &value)
 
 void set_default_config(SimulationConfig &config)
 {
-    config.indexCapacity = 0UL;
-    config.runMode.clear();
-    config.maxSweeps = 0UL;
-    config.initMode = "restart";
-    config.seedConfig = "triangle";
-    config.restartPath = "restart_lammps.dat";
-    config.outputDir = ".";
+    config.engine.indexCapacity = 0UL;
+    config.engine.runMode.clear();
+    config.runtime.maxSweeps = 0UL;
+    config.runtime.outputDir = ".";
+    config.initialization.mode = "restart";
+    config.initialization.seedConfig = "triangle";
+    config.initialization.restartPath = "restart_lammps.dat";
 }
 
 bool is_valid_seed_config(const std::string &value)
@@ -162,10 +154,10 @@ bool validate_index_capacity_value(unsigned long value)
 
 bool finalize_run_mode(SimulationConfig &config, std::string &error_message)
 {
-    std::string mode = config.runMode;
+    std::string mode = config.engine.runMode;
     if (mode.empty())
     {
-        mode = config.indexCapacity == 0UL ? "run" : "extended";
+        mode = config.engine.indexCapacity == 0UL ? "run" : "extended";
     }
 
     if (!is_valid_run_mode(mode))
@@ -176,30 +168,30 @@ bool finalize_run_mode(SimulationConfig &config, std::string &error_message)
 
     if (mode == "test")
     {
-        if (config.indexCapacity != 0UL)
+        if (config.engine.indexCapacity != 0UL)
         {
-            error_message = "The test run mode uses a fixed preset and cannot be combined with --index-capacity or indexCapacity.\n" + assemble_usage();
+            error_message = "The test run mode uses a fixed preset and cannot be combined with --index-capacity or engine.indexCapacity.\n" + assemble_usage();
             return false;
         }
-        config.indexCapacity = kTestIndexCapacity;
+        config.engine.indexCapacity = kTestIndexCapacity;
     }
     else if (mode == "run")
     {
-        if (config.indexCapacity != 0UL)
+        if (config.engine.indexCapacity != 0UL)
         {
-            error_message = "The run mode uses a fixed preset and cannot be combined with --index-capacity or indexCapacity.\n" + assemble_usage();
+            error_message = "The run mode uses a fixed preset and cannot be combined with --index-capacity or engine.indexCapacity.\n" + assemble_usage();
             return false;
         }
-        config.indexCapacity = kRunIndexCapacity;
+        config.engine.indexCapacity = kRunIndexCapacity;
     }
     else
     {
-        if (config.indexCapacity == 0UL)
+        if (config.engine.indexCapacity == 0UL)
         {
-            error_message = "Extended run mode requires --index-capacity (or indexCapacity in the config file).\n" + assemble_usage();
+            error_message = "Extended run mode requires --index-capacity (or engine.indexCapacity in the config file).\n" + assemble_usage();
             return false;
         }
-        if (!validate_index_capacity_value(config.indexCapacity))
+        if (!validate_index_capacity_value(config.engine.indexCapacity))
         {
             std::ostringstream message;
             message << "Invalid value for index capacity. Extended mode requires a value between "
@@ -210,7 +202,7 @@ bool finalize_run_mode(SimulationConfig &config, std::string &error_message)
         }
     }
 
-    config.runMode = mode;
+    config.engine.runMode = mode;
     return true;
 }
 
@@ -223,13 +215,13 @@ bool apply_optional_argument(const std::string &option, const std::string &value
             error_message = "Invalid value for --run-mode. Expected test, run, or extended.\n" + assemble_usage();
             return false;
         }
-        config.runMode = value;
+        config.engine.runMode = value;
         return true;
     }
 
     if (option == "--index-capacity")
     {
-        if (!parse_unsigned_long_string(value, config.indexCapacity) || config.indexCapacity == 0 || config.indexCapacity > static_cast<unsigned long>(INT_MAX))
+        if (!parse_unsigned_long_string(value, config.engine.indexCapacity) || config.engine.indexCapacity == 0UL || config.engine.indexCapacity > static_cast<unsigned long>(INT_MAX))
         {
             error_message = "Invalid value for --index-capacity.\n" + assemble_usage();
             return false;
@@ -239,7 +231,7 @@ bool apply_optional_argument(const std::string &option, const std::string &value
 
     if (option == "--max-sweeps")
     {
-        if (!parse_unsigned_long_string(value, config.maxSweeps))
+        if (!parse_unsigned_long_string(value, config.runtime.maxSweeps))
         {
             error_message = "Invalid value for --max-sweeps.\n" + assemble_usage();
             return false;
@@ -254,26 +246,21 @@ bool apply_optional_argument(const std::string &option, const std::string &value
             error_message = "Invalid value for --restart.\n" + assemble_usage();
             return false;
         }
-        config.restartPath = value;
+        config.initialization.restartPath = value;
         return true;
     }
 
     if (option == "--init")
     {
-        if (value == "restart")
+        if (value == "restart" || value == "seed")
         {
-            config.initMode = value;
-            return true;
-        }
-        if (value == "seed")
-        {
-            config.initMode = value;
+            config.initialization.mode = value;
             return true;
         }
         if (is_valid_seed_config(value))
         {
-            config.initMode = "seed";
-            config.seedConfig = value;
+            config.initialization.mode = "seed";
+            config.initialization.seedConfig = value;
             return true;
         }
         error_message = "Invalid value for --init. Expected restart, seed, triangle, pentamer, or hexamer.\n" + assemble_usage();
@@ -287,7 +274,7 @@ bool apply_optional_argument(const std::string &option, const std::string &value
             error_message = "Invalid value for --seed-config. Expected triangle, pentamer, or hexamer.\n" + assemble_usage();
             return false;
         }
-        config.seedConfig = value;
+        config.initialization.seedConfig = value;
         return true;
     }
 
@@ -298,7 +285,7 @@ bool apply_optional_argument(const std::string &option, const std::string &value
             error_message = "Invalid value for --output-dir.\n" + assemble_usage();
             return false;
         }
-        config.outputDir = value;
+        config.runtime.outputDir = value;
         return true;
     }
 
@@ -326,6 +313,31 @@ bool parse_optional_arguments(int argc, char **argv, int start_index, Simulation
     return true;
 }
 
+bool handle_section_numeric_field(const std::string &section, const std::string &key, const std::string &value, NumericFieldSpec *fields, int field_count, std::string &error_message)
+{
+    if (section.empty())
+    {
+        error_message = "Config keys must appear inside a named section.";
+        return false;
+    }
+
+    for (int i = 0; i < field_count; ++i)
+    {
+        if (key == fields[i].name)
+        {
+            if (!parse_double_string(value, *fields[i].value))
+            {
+                error_message = std::string("Invalid value for ") + section + "." + key + ".";
+                return false;
+            }
+            *fields[i].was_set = true;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 bool load_simulation_config_file(const std::string &config_path, SimulationConfig &config, std::string &error_message)
 {
     std::ifstream input(config_path.c_str());
@@ -335,20 +347,14 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
         return false;
     }
 
-    bool seed_set = false;
+    bool runtime_seed_set = false;
+
     bool epsilon0_set = false;
     bool kappa0_set = false;
     bool kappaPhi0_set = false;
     bool theta0_set = false;
     bool theta1_set = false;
     bool gb0_set = false;
-    bool muCd_set = false;
-    bool ks0_set = false;
-    bool dmu_set = false;
-    bool dg_set = false;
-    bool mudrug_set = false;
-    bool gdrug0_set = false;
-    bool kd0_set = false;
     bool dg12_set = false;
     bool dg01_set = false;
     bool dg20_set = false;
@@ -356,30 +362,45 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
     bool dg00_set = false;
     bool dgother_set = false;
 
-    ConfigFieldSpec numeric_fields[] = {
-        {"epsilon0", &config.epsilon0, &epsilon0_set},
-        {"kappa0", &config.kappa0, &kappa0_set},
-        {"kappaPhi0", &config.kappaPhi0, &kappaPhi0_set},
-        {"theta0", &config.theta0, &theta0_set},
-        {"theta1", &config.theta1, &theta1_set},
-        {"gb0", &config.gb0, &gb0_set},
-        {"LnK", &config.gb0, &gb0_set},
-        {"muCd", &config.muCd, &muCd_set},
-        {"ks0", &config.ks0, &ks0_set},
-        {"dmu", &config.dmu, &dmu_set},
-        {"dg", &config.dg, &dg_set},
-        {"mudrug", &config.mudrug, &mudrug_set},
-        {"gdrug0", &config.gdrug0, &gdrug0_set},
-        {"kd0", &config.kd0, &kd0_set},
-        {"dg12", &config.dg12, &dg12_set},
-        {"dg01", &config.dg01, &dg01_set},
-        {"dg20", &config.dg20, &dg20_set},
-        {"dg33", &config.dg33, &dg33_set},
-        {"dg00", &config.dg00, &dg00_set},
-        {"dgother", &config.dgother, &dgother_set},
+    bool muCd_set = false;
+    bool ks0_set = false;
+    bool dmu_set = false;
+    bool dg_set = false;
+
+    bool mudrug_set = false;
+    bool gdrug0_set = false;
+    bool kd0_set = false;
+
+    NumericFieldSpec capsid_fields[] = {
+        {"epsilon0", &config.capsidGeometry.epsilon0, &epsilon0_set},
+        {"kappa0", &config.capsidGeometry.kappa0, &kappa0_set},
+        {"kappaPhi0", &config.capsidGeometry.kappaPhi0, &kappaPhi0_set},
+        {"theta0", &config.capsidGeometry.theta0, &theta0_set},
+        {"theta1", &config.capsidGeometry.theta1, &theta1_set},
+        {"gb0", &config.capsidGeometry.gb0, &gb0_set},
+        {"dg12", &config.capsidGeometry.dg12, &dg12_set},
+        {"dg01", &config.capsidGeometry.dg01, &dg01_set},
+        {"dg20", &config.capsidGeometry.dg20, &dg20_set},
+        {"dg33", &config.capsidGeometry.dg33, &dg33_set},
+        {"dg00", &config.capsidGeometry.dg00, &dg00_set},
+        {"dgother", &config.capsidGeometry.dgother, &dgother_set},
+    };
+
+    NumericFieldSpec simulation_fields[] = {
+        {"muCd", &config.simulation.muCd, &muCd_set},
+        {"ks0", &config.simulation.ks0, &ks0_set},
+        {"dmu", &config.simulation.dmu, &dmu_set},
+        {"dg", &config.simulation.dg, &dg_set},
+    };
+
+    NumericFieldSpec drug_fields[] = {
+        {"mudrug", &config.drug.mudrug, &mudrug_set},
+        {"gdrug0", &config.drug.gdrug0, &gdrug0_set},
+        {"kd0", &config.drug.kd0, &kd0_set},
     };
 
     const std::string config_dir = parent_directory(config_path);
+    std::string current_section;
 
     std::string raw_line;
     int line_number = 0;
@@ -390,6 +411,30 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
         std::string line = trim(raw_line.substr(0, comment_pos));
         if (line.empty())
         {
+            continue;
+        }
+
+        if (line[0] == '[')
+        {
+            if (line[line.size() - 1] != ']')
+            {
+                std::ostringstream message;
+                message << "Invalid config line " << line_number << ": malformed section header.";
+                error_message = message.str();
+                return false;
+            }
+
+            current_section = trim(line.substr(1, line.size() - 2));
+            if (current_section != "capsid_geometry" &&
+                current_section != "simulation" &&
+                current_section != "drug" &&
+                current_section != "init" &&
+                current_section != "runtime" &&
+                current_section != "engine")
+            {
+                error_message = std::string("Unknown config section: ") + current_section;
+                return false;
+            }
             continue;
         }
 
@@ -412,115 +457,148 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
             return false;
         }
 
-        if (key == "seed")
+        if (current_section.empty())
         {
-            if (!parse_unsigned_long_string(value, config.seed))
-            {
-                error_message = "Invalid value for seed in config file.";
-                return false;
-            }
-            seed_set = true;
-            continue;
+            error_message = "Config keys must appear inside a named section.";
+            return false;
         }
 
-        if (key == "indexCapacity" || key == "index_capacity")
+        if (current_section == "capsid_geometry")
         {
-            if (!parse_unsigned_long_string(value, config.indexCapacity) || config.indexCapacity == 0 || config.indexCapacity > static_cast<unsigned long>(INT_MAX))
+            if (!handle_section_numeric_field(current_section, key, value, capsid_fields, sizeof(capsid_fields) / sizeof(capsid_fields[0]), error_message))
             {
-                error_message = "Invalid value for indexCapacity in config file.";
+                error_message = std::string("Unknown config key in [capsid_geometry]: ") + key;
                 return false;
             }
             continue;
         }
 
-        if (key == "runMode" || key == "run_mode")
+        if (current_section == "simulation")
         {
-            if (!is_valid_run_mode(value))
+            if (!handle_section_numeric_field(current_section, key, value, simulation_fields, sizeof(simulation_fields) / sizeof(simulation_fields[0]), error_message))
             {
-                error_message = "Invalid value for runMode in config file.";
-                return false;
-            }
-            config.runMode = value;
-            continue;
-        }
-
-        if (key == "maxSweeps" || key == "max_sweeps")
-        {
-            if (!parse_unsigned_long_string(value, config.maxSweeps))
-            {
-                error_message = "Invalid value for maxSweeps in config file.";
+                error_message = std::string("Unknown config key in [simulation]: ") + key;
                 return false;
             }
             continue;
         }
 
-        if (key == "restart" || key == "restartPath" || key == "restart_path")
+        if (current_section == "drug")
         {
-            config.restartPath = resolve_relative_to(config_dir, value);
-            continue;
-        }
-
-        if (key == "init" || key == "initMode" || key == "init_mode")
-        {
-            if (value == "restart" || value == "seed")
+            if (!handle_section_numeric_field(current_section, key, value, drug_fields, sizeof(drug_fields) / sizeof(drug_fields[0]), error_message))
             {
-                config.initMode = value;
-                continue;
-            }
-            if (!is_valid_seed_config(value))
-            {
-                error_message = "Invalid value for init in config file.";
+                error_message = std::string("Unknown config key in [drug]: ") + key;
                 return false;
             }
-            config.initMode = "seed";
-            config.seedConfig = value;
             continue;
         }
 
-        if (key == "seedConfig" || key == "seed_config")
+        if (current_section == "init")
         {
-            if (!is_valid_seed_config(value))
+            if (key == "mode")
             {
-                error_message = "Invalid value for seedConfig in config file.";
-                return false;
-            }
-            config.seedConfig = value;
-            continue;
-        }
-
-        if (key == "outputDir" || key == "output_dir")
-        {
-            config.outputDir = resolve_relative_to(config_dir, value);
-            continue;
-        }
-
-        bool matched_numeric = false;
-        const int field_count = sizeof(numeric_fields) / sizeof(numeric_fields[0]);
-        for (int i = 0; i < field_count; ++i)
-        {
-            if (key == numeric_fields[i].name)
-            {
-                if (!parse_double_string(value, *numeric_fields[i].value))
+                if (value == "restart" || value == "seed")
                 {
-                    error_message = std::string("Invalid value for ") + key + " in config file.";
+                    config.initialization.mode = value;
+                    continue;
+                }
+                if (is_valid_seed_config(value))
+                {
+                    config.initialization.mode = "seed";
+                    config.initialization.seedConfig = value;
+                    continue;
+                }
+                error_message = "Invalid value for init.mode.";
+                return false;
+            }
+
+            if (key == "seedShape")
+            {
+                if (!is_valid_seed_config(value))
+                {
+                    error_message = "Invalid value for init.seedShape.";
                     return false;
                 }
-                *numeric_fields[i].was_set = true;
-                matched_numeric = true;
-                break;
+                config.initialization.seedConfig = value;
+                continue;
             }
+
+            if (key == "restartPath")
+            {
+                config.initialization.restartPath = resolve_relative_to(config_dir, value);
+                continue;
+            }
+
+            error_message = std::string("Unknown config key in [init]: ") + key;
+            return false;
         }
 
-        if (!matched_numeric)
+        if (current_section == "runtime")
         {
-            error_message = std::string("Unknown config key: ") + key;
+            if (key == "seed")
+            {
+                if (!parse_unsigned_long_string(value, config.runtime.seed))
+                {
+                    error_message = "Invalid value for runtime.seed.";
+                    return false;
+                }
+                runtime_seed_set = true;
+                continue;
+            }
+
+            if (key == "maxSweeps")
+            {
+                if (!parse_unsigned_long_string(value, config.runtime.maxSweeps))
+                {
+                    error_message = "Invalid value for runtime.maxSweeps.";
+                    return false;
+                }
+                continue;
+            }
+
+            if (key == "outputDir")
+            {
+                config.runtime.outputDir = resolve_relative_to(config_dir, value);
+                continue;
+            }
+
+            error_message = std::string("Unknown config key in [runtime]: ") + key;
+            return false;
+        }
+
+        if (current_section == "engine")
+        {
+            if (key == "profile")
+            {
+                if (!is_valid_run_mode(value))
+                {
+                    error_message = "Invalid value for engine.profile.";
+                    return false;
+                }
+                config.engine.runMode = value;
+                continue;
+            }
+
+            if (key == "indexCapacity")
+            {
+                if (!parse_unsigned_long_string(value, config.engine.indexCapacity) || config.engine.indexCapacity == 0UL || config.engine.indexCapacity > static_cast<unsigned long>(INT_MAX))
+                {
+                    error_message = "Invalid value for engine.indexCapacity.";
+                    return false;
+                }
+                continue;
+            }
+
+            error_message = std::string("Unknown config key in [engine]: ") + key;
             return false;
         }
     }
 
-    if (!seed_set || !epsilon0_set || !kappa0_set || !kappaPhi0_set || !theta0_set || !theta1_set || !gb0_set ||
-        !muCd_set || !ks0_set || !dmu_set || !dg_set || !mudrug_set || !gdrug0_set || !kd0_set || !dg12_set ||
-        !dg01_set || !dg20_set || !dg33_set || !dg00_set || !dgother_set)
+    if (!runtime_seed_set ||
+        !epsilon0_set || !kappa0_set || !kappaPhi0_set || !theta0_set || !theta1_set || !gb0_set ||
+        !dg12_set || !dg01_set || !dg20_set || !dg33_set || !dg00_set || !dgother_set ||
+        !muCd_set || !ks0_set || !dmu_set || !dg_set ||
+        !mudrug_set || !gdrug0_set || !kd0_set)
     {
         error_message = "Config file is missing one or more required fields.";
         return false;
@@ -533,92 +611,88 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
 std::string assemble_usage()
 {
     std::ostringstream usage;
-    usage << "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother "
+    usage << "usage: ./assemble --config PATH "
           << "[--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
-          << "   or: ./assemble --config PATH [--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
-          << "   run modes: test=" << kTestIndexCapacity
+          << "config sections: [capsid_geometry], [simulation], [drug], [init], [runtime], [engine]\n"
+          << "engine profiles: test=" << kTestIndexCapacity
           << ", run=" << kRunIndexCapacity
           << ", extended unlocks --index-capacity >= " << kMinimumIndexCapacity;
     return usage.str();
 }
 
-bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, std::string &error_message)
+std::string render_simulation_config(const SimulationConfig &config)
 {
-    if (argc >= 2 && std::string(argv[1]) == "--config")
+    std::ostringstream output;
+    output.setf(std::ios::fixed);
+    output.precision(6);
+
+    output << "[capsid_geometry]\n";
+    output << "epsilon0 = " << config.capsidGeometry.epsilon0 << "\n";
+    output << "kappa0 = " << config.capsidGeometry.kappa0 << "\n";
+    output << "kappaPhi0 = " << config.capsidGeometry.kappaPhi0 << "\n";
+    output << "theta0 = " << config.capsidGeometry.theta0 << "\n";
+    output << "theta1 = " << config.capsidGeometry.theta1 << "\n";
+    output << "gb0 = " << config.capsidGeometry.gb0 << "\n";
+    output << "dg12 = " << config.capsidGeometry.dg12 << "\n";
+    output << "dg01 = " << config.capsidGeometry.dg01 << "\n";
+    output << "dg20 = " << config.capsidGeometry.dg20 << "\n";
+    output << "dg33 = " << config.capsidGeometry.dg33 << "\n";
+    output << "dg00 = " << config.capsidGeometry.dg00 << "\n";
+    output << "dgother = " << config.capsidGeometry.dgother << "\n\n";
+
+    output << "[simulation]\n";
+    output << "muCd = " << config.simulation.muCd << "\n";
+    output << "ks0 = " << config.simulation.ks0 << "\n";
+    output << "dmu = " << config.simulation.dmu << "\n";
+    output << "dg = " << config.simulation.dg << "\n\n";
+
+    output << "[drug]\n";
+    output << "mudrug = " << config.drug.mudrug << "\n";
+    output << "gdrug0 = " << config.drug.gdrug0 << "\n";
+    output << "kd0 = " << config.drug.kd0 << "\n\n";
+
+    output << "[init]\n";
+    output << "mode = " << config.initialization.mode << "\n";
+    output << "seedShape = " << config.initialization.seedConfig << "\n";
+    output << "restartPath = " << config.initialization.restartPath << "\n\n";
+
+    output << "[runtime]\n";
+    output << "seed = " << config.runtime.seed << "\n";
+    output << "maxSweeps = " << config.runtime.maxSweeps << "\n";
+    output << "outputDir = " << config.runtime.outputDir << "\n\n";
+
+    output << "[engine]\n";
+    output << "profile = " << config.engine.runMode << "\n";
+    if (config.engine.runMode == "extended")
     {
-        if (argc < 3 || argv[2] == nullptr || *argv[2] == '\0')
-        {
-            error_message = "Missing value for --config.\n" + assemble_usage();
-            return false;
-        }
-        set_default_config(config);
-        if (!load_simulation_config_file(argv[2], config, error_message))
-        {
-            error_message += "\n" + assemble_usage();
-            return false;
-        }
-        if (!parse_optional_arguments(argc, argv, 3, config, error_message))
-        {
-            return false;
-        }
-        if (!finalize_run_mode(config, error_message))
-        {
-            return false;
-        }
-        error_message.clear();
-        return true;
+        output << "indexCapacity = " << config.engine.indexCapacity << "\n";
     }
 
-    if (argc < 21)
+    return output.str();
+}
+
+bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, std::string &error_message)
+{
+    if (argc < 2 || std::string(argv[1]) != "--config")
     {
-        std::ostringstream message;
-        message << "Expected at least 20 arguments after the executable name, got " << (argc - 1) << ".\n"
-                << assemble_usage();
-        error_message = message.str();
+        error_message = "HEVA now requires --config PATH using the sectioned config format.\n" + assemble_usage();
+        return false;
+    }
+
+    if (argc < 3 || argv[2] == nullptr || *argv[2] == '\0')
+    {
+        error_message = "Missing value for --config.\n" + assemble_usage();
         return false;
     }
 
     set_default_config(config);
-
-    if (!parse_unsigned_long(argv[1], config.seed))
+    if (!load_simulation_config_file(argv[2], config, error_message))
     {
-        error_message = "Invalid value for seed.\n" + assemble_usage();
+        error_message += "\n" + assemble_usage();
         return false;
     }
 
-    FieldSpec fields[] = {
-        {2, "epsilon0", &config.epsilon0},
-        {3, "kappa0", &config.kappa0},
-        {4, "kappaPhi0", &config.kappaPhi0},
-        {5, "theta0", &config.theta0},
-        {6, "theta1", &config.theta1},
-        {7, "LnK", &config.gb0},
-        {8, "muCd", &config.muCd},
-        {9, "ks0", &config.ks0},
-        {10, "dmu", &config.dmu},
-        {11, "dummydg", &config.dg},
-        {12, "mudrug", &config.mudrug},
-        {13, "gdrug", &config.gdrug0},
-        {14, "kd0", &config.kd0},
-        {15, "dg12", &config.dg12},
-        {16, "dg01", &config.dg01},
-        {17, "dg20", &config.dg20},
-        {18, "dg33", &config.dg33},
-        {19, "dg00", &config.dg00},
-        {20, "dgother", &config.dgother},
-    };
-
-    const int field_count = sizeof(fields) / sizeof(fields[0]);
-    for (int i = 0; i < field_count; ++i)
-    {
-        if (!parse_double_value(argv[fields[i].index], *fields[i].value))
-        {
-            error_message = std::string("Invalid value for ") + fields[i].name + ".\n" + assemble_usage();
-            return false;
-        }
-    }
-
-    if (!parse_optional_arguments(argc, argv, 21, config, error_message))
+    if (!parse_optional_arguments(argc, argv, 3, config, error_message))
     {
         return false;
     }

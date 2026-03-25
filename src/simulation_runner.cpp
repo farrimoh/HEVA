@@ -191,9 +191,9 @@ void write_stop_snapshot(geometry &g, FILE *ofile, unsigned long sweep, unsigned
 SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &config)
 {
     SimulationLoopSettings settings;
-    settings.maxSweeps = config.maxSweeps;
+    settings.maxSweeps = config.runtime.maxSweeps;
     settings.final_equilibration_steps = 10 * settings.freq_log;
-    if (config.initMode != "restart")
+    if (config.initialization.mode != "restart")
     {
         settings.initial_equilibration_steps = 0;
     }
