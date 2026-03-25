@@ -145,7 +145,7 @@ int main(int argc, char **argv)
     const std::string restart_path = resolve_path_from(launch_dir, config.restartPath);
     const std::string output_dir = resolve_path_from(launch_dir, config.outputDir);
 
-    if (access(restart_path.c_str(), R_OK) != 0)
+    if (config.initMode == "restart" && access(restart_path.c_str(), R_OK) != 0)
     {
         std::cerr << "Restart file is not readable: " << restart_path << std::endl;
         return -1;
@@ -198,9 +198,9 @@ int main(int argc, char **argv)
     }
 
     fi = fopen("parameters_run.out", "a");
-    fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--index-capacity N] [--max-sweeps N] [--restart PATH] [--output-dir PATH]\n");
-    fprintf(fi, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f --index-capacity %lu --max-sweeps %lu --restart %s --output-dir %s\n",
-            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, config.dmu, g.dg, g.mudrug, config.gdrug0, config.kd0, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.dgother, config.indexCapacity, config.maxSweeps, restart_path.c_str(), output_dir.c_str());
+    fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n");
+    fprintf(fi, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f --index-capacity %lu --max-sweeps %lu --init %s --seed-config %s --restart %s --output-dir %s\n",
+            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, config.dmu, g.dg, g.mudrug, config.gdrug0, config.kd0, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.dgother, config.indexCapacity, config.maxSweeps, config.initMode.c_str(), config.seedConfig.c_str(), restart_path.c_str(), output_dir.c_str());
 
     for (int i = 0; i < g.Ntype; i++)
     {
@@ -234,9 +234,9 @@ int main(int argc, char **argv)
     fclose(fi);
 
     unsigned long sweep = 0;
-    fprintf(stderr, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK LnZ ks0 muAB mudrugdrugProb kd0 sweep [--index-capacity N] [--max-sweeps N] [--restart PATH] [--output-dir PATH]\n");
-    fprintf(stderr, "./source/assemble %lu %f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %lu --index-capacity %lu --max-sweeps %lu --restart %s --output-dir %s\n",
-            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, g.mu[1], g.dg, g.mudrug, config.gdrug0, config.kd0, sweep, config.indexCapacity, config.maxSweeps, restart_path.c_str(), output_dir.c_str());
+    fprintf(stderr, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK LnZ ks0 muAB mudrugdrugProb kd0 sweep [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n");
+    fprintf(stderr, "./source/assemble %lu %f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %lu --index-capacity %lu --max-sweeps %lu --init %s --seed-config %s --restart %s --output-dir %s\n",
+            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, g.mu[1], g.dg, g.mudrug, config.gdrug0, config.kd0, sweep, config.indexCapacity, config.maxSweeps, config.initMode.c_str(), config.seedConfig.c_str(), restart_path.c_str(), output_dir.c_str());
 
     for (int j = 0; j < 4; j++)
     {
@@ -245,7 +245,14 @@ int main(int argc, char **argv)
 
     SimulationRunStats stats;
     SimulationLoopSettings settings = make_simulation_loop_settings(config);
-    initialize_from_restart(g, r, restart_path.c_str(), sweep, stats, settings);
+    if (config.initMode == "restart")
+    {
+        initialize_from_restart(g, r, restart_path.c_str(), sweep, stats, settings);
+    }
+    else
+    {
+        initialize_from_seed(g, r, config.seedConfig.c_str(), sweep, stats, settings);
+    }
     SimulationStopReason stop_reason = run_simulation_loop(g, r, ofile, config.seed, timer1, sweep, config.ks0, stats, settings);
     finalize_simulation(g, r, ofile, config.seed, timer1, sweep, stats, settings, stop_reason);
 

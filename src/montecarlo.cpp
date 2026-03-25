@@ -38,6 +38,31 @@
 using namespace std;
 const double Pi  =3.141592653589793238463;
 
+namespace
+{
+bool add_seed_dimers(geometry &g, gsl_rng *r, int count)
+{
+    double distance_vector[3] = {0.0, 0.0, 0.0};
+    for (int i = 0; i < count; ++i)
+    {
+        g.update_boundary();
+        if (g.boundary.empty())
+        {
+            return false;
+        }
+
+        const int heid = g.boundary.back();
+        if (g.add_dimer(heid, r, 0, 1, distance_vector) < 0)
+        {
+            return false;
+        }
+    }
+
+    g.update_boundary();
+    return true;
+}
+}
+
 
 void move_vertex(geometry &g, gsl_rng *r)
 {
@@ -4183,172 +4208,27 @@ void get_dimer_etypes(int etypeheid0, int etypenew1, int etypenew2, gsl_rng *r)
     //etypenew2=gsl_rng_uniform_int(r,4);
 }
 
-void make_seed(geometry &g, gsl_rng *r)
+bool make_seed(geometry &g, gsl_rng *r, const std::string &seed_config)
 {
-    /*//if ((file = fopen(filename, "r")))
-    //int frame = 0;
-    //int monomeradded=0;
-    ///int dimeradded=0;
-    //int monomerremoved=0;
-    //int dimerremoved=0;
-
-    make_initial_pentamer(g);
-    double ee = g.compute_energy();
-
-    //dump_lammps_data_file(g, frame++);
-    for (int rstep = 0; rstep < 1000; rstep++)
-    { //relaxing the shell
-        move_vertex(g, r);
-        g.update_boundary();
-    }
-    ee = g.compute_energy();
-    std::cout << ee << endl;
-    //dump_lammps_data_file(g, frame++);
-    //fprintf(stderr, "Graph initialized.\n");
-
-    for (int rstep = 0; rstep < 5; rstep++)
+    if (seed_config == "triangle")
     {
-
-        g.add_dimer(3 + rstep * 4, r, 3, 3);
-        g.update_boundary();
-
-        for (int rstep = 0; rstep < 10000; rstep++)
-        { //relaxing the shell
-            move_vertex(g, r);
-        }
-        g.update_boundary();
+        make_initial_triangle(g);
+        return true;
     }
-    //fprintf(stderr, "Dimers added \n");
-    //std::cout << "#########  NHE " << g.Nhe << " #######################" << endl;
-    //fprintf(stderr, "Adding more!  \n");
-    std::cout << endl;
-    for (int rstep = 0; rstep < 5; rstep++)
+
+    if (seed_config == "pentamer")
     {
-
-        g.add_dimer(21 + rstep * 4, r, 1, 2);
-        g.update_boundary();
-        //g.update_index();
-        ee = g.compute_energy();
-
-        for (int step = 0; step < 10000; step++)
-        { //relaxing the shell
-            move_vertex(g, r);
-            g.update_boundary();
-        }
-        ee = g.compute_energy();
-
-        //dump_lammps_data_file(g, frame++);
+        make_initial_triangle(g);
+        return add_seed_dimers(g, r, 2);
     }
 
-    //fprintf(stderr, "More Dimers added \n");
-    //std::cout << "TESTING BIND UNBIND in make seed " << endl;
-    std::cout << endl;
-
-    //for (unsigned int step = 0; step < g.boundary.size() *10; step++)
-    //{
-    //    int ind = gsl_rng_uniform_int(r, g.boundary.size());
-
-    //    int e = g.boundary[ind];
-    for (int rstep = 0; rstep < 100000; rstep++)
-    { //relaxing the shell
-        move_vertex(g, r);
-    }
-    g.update_boundary();
-
-    for (int rstep = 0; rstep < 20; rstep++)
+    if (seed_config == "hexamer")
     {
-        int e = 23 + rstep * 4;
-        //std::cout << "e for binding " << e << endl;
-        if (g.no_bond_boundary(e) > 0)
-        {
-            int tt = attempt_bind_wedge_dimer(g, e, r);
-            if (tt > 0)
-            {
-                std::cout << "Bound " << endl;
-                tt = 0;
-            }
-            //std::cout << "relaxing the shell"<<endl;
-            //g.update_boundary();
-            //dump_lammps_data_file(g, frame++);
-            for (int rstep = 0; rstep < 1000; rstep++)
-            { //relaxing the shell
-                move_vertex(g, r);
-            }
-            g.update_boundary();
-        }
-        //ind = gsl_rng_uniform_int(r, g.boundary.size());
-        //std::cout <<"ind id for unbinding" << ind<<endl;
-        //e = g.boundary[ind];
-        //std::cout << "e for unbinding " << e << endl;
-        //if ((g.is_bond_in_boundary(e)>0) || (g.is_bond_out_boundary(e)>0)) {
-        //int tt = attempt_unbind_wedge_dimer(g, e, r);
-        //  if (tt > 0)
-        // {
-        //     std::cout << "UNNNNBound " << endl;
-        //     tt = 0;
-        // }
-        // g.update_boundary();
-        //dump_lammps_data_file(g, frame++);
-        //}
+        make_initial_triangle(g);
+        return add_seed_dimers(g, r, 3);
     }
-    g.update_boundary();
-    //dump_lammps_data_file(g, frame++);
-    //std::cout << "AFTER ALL BINDINGS" << endl;
-    //std::cout << "#########  NHE " << g.Nhe << " #######################" << endl;
-    std::cout << endl;
-    //fprintf(stderr, "Adding monomer???  \n");
-    //for (vector<int>::iterator vt = g.boundary.begin(); vt != g.boundary.end(); ++vt)
-    //{
-    //    std::cout << "heid "<< *vt << "next " << g.he[g.heidtoindex[*vt]].nextid << "prev " << g.he[g.heidtoindex[*vt]].previd << endl;
-    //}
-    int nm = 0;
-    for (int rstep = 0; rstep < 5; rstep++)
-    {
-        int heid0 = 23 + rstep * 4;
-        int heindex0 = g.heidtoindex[heid0];
-        int xid = g.he[heindex0].nextid;
-        int yid = g.he[heindex0].previd;
-        if (xid != -1)
-        {
-            int ss = g.add_monomer(heid0, xid, 1);
-            if (ss > 0)
-            {
-                //std::cout << "monomer added"<< endl;
-                ss = 0;
-            }
-            //dump_lammps_data_file(g, frame++);
-            nm++;
-        }
-        else if (yid != -1)
-        {
-            int ss = g.add_monomer(yid, heid0, 1);
-            if (ss > 0)
-            {
-                //std::cout << "monomer added"<< endl;
-                ss = 0;
-            }
-            //dump_lammps_data_file(g, frame++);
-            nm++;
-        }
-        //g.add_monomer_dimer(23 + rstep * 4); //change it
-        g.update_boundary();
 
-        for (int rstep = 0; rstep < 1000; rstep++)
-        { //relaxing the shell
-            move_vertex(g, r);
-            g.update_boundary();
-        }
-
-        //dump_lammps_data_file(g, frame++);
-    }
-    //dump_lammps_data_file(g, frame++);
-    //std::cout << nm << " monomers added" << endl;
-    if (nm < 5)
-    {
-        std::exit(-1);
-    }
-    //std::cout << "#########  NHE " << g.Nhe << " #######################" << endl;
-    std::cout << endl;*/
+    return false;
 }
 
 void make_seed_T3(geometry &g, gsl_rng *r)

@@ -8,6 +8,19 @@ void apply_simulation_config(const SimulationConfig &config, geometry &g)
 {
     g.initialize(4, config.indexCapacity);
     g.all_neigh = 0;
+    g.T = 1;
+    g.xi = .5;
+    g.Nd = 0;
+
+    g.l0[0] = 1.05;
+    g.l0[1] = .95;
+    g.l0[2] = .95;
+    g.l0[3] = 1.05;
+
+    g.phi0[0] = 1.05;
+    g.phi0[1] = 1.17;
+    g.phi0[2] = .98;
+    g.phi0[3] = 1.05;
 
     g.epsilon[0] = config.epsilon0;
     g.epsilon[1] = g.epsilon[0];
@@ -81,18 +94,4 @@ void apply_simulation_config(const SimulationConfig &config, geometry &g)
                 g.gdrug[i][j] = 0;
         }
     }
-
-    g.l0[0] = 1.05;
-    g.l0[1] = .95;
-    g.l0[2] = .95;
-    g.l0[3] = 1.05;
-
-    g.phi0[0] = 1.05;
-    g.phi0[1] = 1.17;
-    g.phi0[2] = .98;
-    g.phi0[3] = 1.05;
-
-    g.xi = .5;
-    g.T = 1;
-    g.Nd = 0;
 }

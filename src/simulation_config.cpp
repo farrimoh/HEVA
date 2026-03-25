@@ -134,8 +134,15 @@ void set_default_config(SimulationConfig &config)
 {
     config.indexCapacity = 1000000UL;
     config.maxSweeps = 0UL;
+    config.initMode = "restart";
+    config.seedConfig = "triangle";
     config.restartPath = "restart_lammps.dat";
     config.outputDir = ".";
+}
+
+bool is_valid_seed_config(const std::string &value)
+{
+    return value == "triangle" || value == "pentamer" || value == "hexamer";
 }
 
 bool apply_optional_argument(const std::string &option, const std::string &value, SimulationConfig &config, std::string &error_message)
@@ -168,6 +175,39 @@ bool apply_optional_argument(const std::string &option, const std::string &value
             return false;
         }
         config.restartPath = value;
+        return true;
+    }
+
+    if (option == "--init")
+    {
+        if (value == "restart")
+        {
+            config.initMode = value;
+            return true;
+        }
+        if (value == "seed")
+        {
+            config.initMode = value;
+            return true;
+        }
+        if (is_valid_seed_config(value))
+        {
+            config.initMode = "seed";
+            config.seedConfig = value;
+            return true;
+        }
+        error_message = "Invalid value for --init. Expected restart, seed, triangle, pentamer, or hexamer.\n" + assemble_usage();
+        return false;
+    }
+
+    if (option == "--seed-config")
+    {
+        if (!is_valid_seed_config(value))
+        {
+            error_message = "Invalid value for --seed-config. Expected triangle, pentamer, or hexamer.\n" + assemble_usage();
+            return false;
+        }
+        config.seedConfig = value;
         return true;
     }
 
@@ -329,6 +369,34 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
             continue;
         }
 
+        if (key == "init" || key == "initMode" || key == "init_mode")
+        {
+            if (value == "restart" || value == "seed")
+            {
+                config.initMode = value;
+                continue;
+            }
+            if (!is_valid_seed_config(value))
+            {
+                error_message = "Invalid value for init in config file.";
+                return false;
+            }
+            config.initMode = "seed";
+            config.seedConfig = value;
+            continue;
+        }
+
+        if (key == "seedConfig" || key == "seed_config")
+        {
+            if (!is_valid_seed_config(value))
+            {
+                error_message = "Invalid value for seedConfig in config file.";
+                return false;
+            }
+            config.seedConfig = value;
+            continue;
+        }
+
         if (key == "outputDir" || key == "output_dir")
         {
             config.outputDir = resolve_relative_to(config_dir, value);
@@ -373,8 +441,8 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
 
 std::string assemble_usage()
 {
-    return "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--index-capacity N] [--max-sweeps N] [--restart PATH] [--output-dir PATH]\n"
-           "   or: ./assemble --config PATH [--index-capacity N] [--max-sweeps N] [--restart PATH] [--output-dir PATH]";
+    return "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
+           "   or: ./assemble --config PATH [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]";
 }
 
 bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, std::string &error_message)

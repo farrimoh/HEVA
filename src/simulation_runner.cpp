@@ -192,6 +192,10 @@ SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &con
     SimulationLoopSettings settings;
     settings.maxSweeps = config.maxSweeps;
     settings.final_equilibration_steps = 10 * settings.freq_log;
+    if (config.initMode != "restart")
+    {
+        settings.initial_equilibration_steps = 0;
+    }
     return settings;
 }
 
@@ -219,6 +223,35 @@ void initialize_from_restart(geometry &g, gsl_rng *rng, const char *filename, un
     {
         dump_restart_lammps_data_file(g, sweep);
     }
+}
+
+void initialize_from_seed(geometry &g, gsl_rng *rng, const char *seed_config, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings)
+{
+    sweep = 0;
+
+    const std::string config = seed_config == nullptr ? "" : seed_config;
+    if (!make_seed(g, rng, config))
+    {
+        std::cerr << "Unknown seed configuration: " << config << std::endl;
+        std::exit(-1);
+    }
+
+    g.update_boundary();
+    g.update_neigh();
+
+    double energy = g.compute_energy();
+    print_energy_state(g, energy, stats.frame, "before equilibration");
+
+    for (int rstep = 0; rstep < settings.initial_equilibration_steps; rstep++)
+    {
+        move_vertex(g, rng);
+        g.update_boundary();
+    }
+
+    energy = g.compute_energy();
+    print_energy_state(g, energy, stats.frame, "after equilibration");
+    fprintf(stderr, "Graph initialized.\n");
+    dump_restart_lammps_data_file(g, sweep);
 }
 
 SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long seed, time_t start_time, unsigned long &sweep, double ks0, SimulationRunStats &stats, const SimulationLoopSettings &settings)

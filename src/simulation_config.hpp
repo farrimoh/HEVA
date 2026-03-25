@@ -8,6 +8,8 @@ struct SimulationConfig
     unsigned long seed;
     unsigned long indexCapacity;
     unsigned long maxSweeps;
+    std::string initMode;
+    std::string seedConfig;
     std::string restartPath;
     std::string outputDir;
     double epsilon0;
