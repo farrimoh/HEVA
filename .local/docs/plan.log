@@ -70,3 +70,6 @@
 
 - [feature] 14:01 Categorized config format and canonical run-config output adopted
   - [2026-03-25-1401-categorized-config-and-run-config-output.md](./sessions/2026-03-25-1401-categorized-config-and-run-config-output.md)
+
+- [feature] 18:56 Seed dispatch folded back into Monte Carlo and extra seed module removed
+  - [2026-03-25-1856-seed-dispatch-folded-into-montecarlo.md](./sessions/2026-03-25-1856-seed-dispatch-folded-into-montecarlo.md)

@@ -28,7 +28,6 @@
  */
 
 #include "geometry.hpp"
-#include "seed_initialization.hpp"
 #include "tri_tri_intersect.hpp"
 #include <iostream>
 #include <vector>

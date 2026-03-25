@@ -2,7 +2,6 @@
 
 #include "geometry.hpp"
 #include "montecarlo.hpp"
-#include "seed_initialization.hpp"
 
 #include <cmath>
 #include <cstdlib>
