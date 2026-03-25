@@ -46,8 +46,6 @@
 
 using namespace std;
 
-gsl_rng *r;
-
 namespace
 {
 bool is_absolute_path(const std::string &path)
@@ -176,9 +174,9 @@ int main(int argc, char **argv)
     }
 
     const gsl_rng_type *t = gsl_rng_taus2;
-    r = gsl_rng_alloc(t);
+    gsl_rng *rng = gsl_rng_alloc(t);
     srand((unsigned)config.seed);
-    gsl_rng_set(r, config.seed);
+    gsl_rng_set(rng, config.seed);
     cout << "HERE " << endl;
 
     geometry g;
@@ -260,16 +258,16 @@ int main(int argc, char **argv)
     SimulationLoopSettings settings = make_simulation_loop_settings(config);
     if (config.initMode == "restart")
     {
-        initialize_from_restart(g, r, restart_path.c_str(), sweep, stats, settings);
+        initialize_from_restart(g, rng, restart_path.c_str(), sweep, stats, settings);
     }
     else
     {
-        initialize_from_seed(g, r, config.seedConfig.c_str(), sweep, stats, settings);
+        initialize_from_seed(g, rng, config.seedConfig.c_str(), sweep, stats, settings);
     }
-    SimulationStopReason stop_reason = run_simulation_loop(g, r, ofile, config.seed, timer1, sweep, config.ks0, stats, settings);
-    finalize_simulation(g, r, ofile, config.seed, timer1, sweep, stats, settings, stop_reason);
+    SimulationStopReason stop_reason = run_simulation_loop(g, rng, ofile, config.seed, timer1, sweep, config.ks0, stats, settings);
+    finalize_simulation(g, rng, ofile, config.seed, timer1, sweep, stats, settings, stop_reason);
 
     fclose(ofile);
-    gsl_rng_free(r);
+    gsl_rng_free(rng);
     return 0;
 }
