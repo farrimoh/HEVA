@@ -32,6 +32,7 @@
 #include "tri_tri_intersect.hpp"
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
+#include <string>
 #include <vector>
 #include <iostream>
 using namespace std;
@@ -398,6 +399,8 @@ int surfclosev(geometry &g);
 int check_bind_triangle(geometry &g);
 
 void dump_analysis(geometry &g, FILE *ofile, int sweep, int seed, int seconds);
+void set_output_directory(const std::string &path);
+std::string output_file_path(const std::string &filename);
 
 //int valid(geometry &g);
 

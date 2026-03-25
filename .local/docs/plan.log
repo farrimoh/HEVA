@@ -55,3 +55,6 @@
 
 - [test] 08:30 Phase B added an open-shell fixture and explicit max-sweeps coverage
   - [2026-03-25-0830-phase-b-open-shell-max-sweeps.md](./sessions/2026-03-25-0830-phase-b-open-shell-max-sweeps.md)
+
+- [feature] 08:45 Phase C removed `chdir(output_dir)` from the normal output path contract
+  - [2026-03-25-0845-phase-c-output-path-contract.md](./sessions/2026-03-25-0845-phase-c-output-path-contract.md)

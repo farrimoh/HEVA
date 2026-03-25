@@ -175,12 +175,6 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    if (chdir(output_dir.c_str()) != 0)
-    {
-        std::cerr << "Failed to enter output directory '" << output_dir << "': " << std::strerror(errno) << std::endl;
-        return -1;
-    }
-
     const gsl_rng_type *t = gsl_rng_taus2;
     r = gsl_rng_alloc(t);
     srand((unsigned)config.seed);
@@ -188,6 +182,7 @@ int main(int argc, char **argv)
     cout << "HERE " << endl;
 
     geometry g;
+    set_output_directory(output_dir);
     apply_simulation_config(config, g);
 
     cout << "l_thermal_sigma is " << g.l_thermal_sigma << endl;
@@ -198,23 +193,26 @@ int main(int argc, char **argv)
     FILE *ofile;
     FILE *fi;
     FILE *paramfile;
+    const std::string energy_path = join_paths(output_dir, "energy.dat");
+    const std::string allparam_path = join_paths(output_dir, "allparam.dat");
+    const std::string parameters_path = join_paths(output_dir, "parameters_run.out");
     g.dump_parameters();
-    ofile = fopen("energy.dat", "a");
-    if (access("energy.dat", F_OK) != -1)
+    ofile = fopen(energy_path.c_str(), "a");
+    if (access(energy_path.c_str(), F_OK) != -1)
     {
         fprintf(stderr, " log files exist\n");
         cout << " file openned" << endl;
     }
     else
     {
-        paramfile = fopen("allparam.dat", "a");
+        paramfile = fopen(allparam_path.c_str(), "a");
         fprintf(paramfile, "# seed, g.epsilon[0], g.kappa[0], g.theta0[0],g.theta0[1], g.gb0, g.mu[0], g.mu[1], dgother,  dg12, dg01,dg20,dg33,dg00 , ks0,g.theta0[2],kd0,gdrug0, g.mudrug \n");
         fprintf(paramfile, "%lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f  %.6f %.3f %.6f %.3f %.3f",
                 config.seed, g.epsilon[0], g.kappa[0], g.theta0[0], g.theta0[1], g.gb0, g.mu[0], g.mu[1], config.dgother, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.ks0, g.theta0[2], config.kd0, config.gdrug0, g.mudrug);
         fclose(paramfile);
     }
 
-    fi = fopen("parameters_run.out", "a");
+    fi = fopen(parameters_path.c_str(), "a");
     fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n");
     write_invocation(fi, config, g, 0UL, restart_path, output_dir);
 

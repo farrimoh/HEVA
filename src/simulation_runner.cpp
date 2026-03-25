@@ -597,7 +597,7 @@ void finalize_simulation(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long s
     int seconds = elapsed_seconds(start_time);
     dump_analysis(g, ofile, sweep, seed, seconds);
 
-    FILE *finalfile = fopen("last.dat", "w");
+    FILE *finalfile = fopen(output_file_path("last.dat").c_str(), "w");
     dump_analysis(g, finalfile, sweep, seed, seconds);
     fclose(finalfile);
 }
