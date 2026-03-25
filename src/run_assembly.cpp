@@ -119,6 +119,23 @@ bool ensure_directory_exists(const std::string &path, std::string &error_message
 
     return true;
 }
+
+void write_invocation(FILE *stream, const SimulationConfig &config, const geometry &g, unsigned long sweep, const std::string &restart_path, const std::string &output_dir)
+{
+    if (config.runMode == "extended")
+    {
+        fprintf(stream, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f --run-mode %s --index-capacity %lu --max-sweeps %lu --init %s --seed-config %s --restart %s --output-dir %s\n",
+                config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, config.dmu, g.dg, g.mudrug, config.gdrug0, config.kd0, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.dgother, config.runMode.c_str(), config.indexCapacity, config.maxSweeps, config.initMode.c_str(), config.seedConfig.c_str(), restart_path.c_str(), output_dir.c_str());
+    }
+    else
+    {
+        fprintf(stream, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f --run-mode %s --max-sweeps %lu --init %s --seed-config %s --restart %s --output-dir %s\n",
+                config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, config.dmu, g.dg, g.mudrug, config.gdrug0, config.kd0, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.dgother, config.runMode.c_str(), config.maxSweeps, config.initMode.c_str(), config.seedConfig.c_str(), restart_path.c_str(), output_dir.c_str());
+    }
+
+    fprintf(stream, "# effective run mode=%s index_capacity=%lu sweep=%lu\n",
+            config.runMode.c_str(), config.indexCapacity, sweep);
+}
 }
 
 int main(int argc, char **argv)
@@ -198,9 +215,8 @@ int main(int argc, char **argv)
     }
 
     fi = fopen("parameters_run.out", "a");
-    fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n");
-    fprintf(fi, "./source/assemble %lu %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.6f %.3f %.3f %.3f %.3f %.3f %.3f --index-capacity %lu --max-sweeps %lu --init %s --seed-config %s --restart %s --output-dir %s\n",
-            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, config.dmu, g.dg, g.mudrug, config.gdrug0, config.kd0, config.dg12, config.dg01, config.dg20, config.dg33, config.dg00, config.dgother, config.indexCapacity, config.maxSweeps, config.initMode.c_str(), config.seedConfig.c_str(), restart_path.c_str(), output_dir.c_str());
+    fprintf(fi, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n");
+    write_invocation(fi, config, g, 0UL, restart_path, output_dir);
 
     for (int i = 0; i < g.Ntype; i++)
     {
@@ -234,9 +250,8 @@ int main(int argc, char **argv)
     fclose(fi);
 
     unsigned long sweep = 0;
-    fprintf(stderr, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK LnZ ks0 muAB mudrugdrugProb kd0 sweep [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n");
-    fprintf(stderr, "./source/assemble %lu %f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.3f %.6f %lu --index-capacity %lu --max-sweeps %lu --init %s --seed-config %s --restart %s --output-dir %s\n",
-            config.seed, g.epsilon[0], g.kappa[0], config.kappaPhi0, g.theta0[0], g.theta0[1], g.gb0, g.mu[0], config.ks0, g.mu[1], g.dg, g.mudrug, config.gdrug0, config.kd0, sweep, config.indexCapacity, config.maxSweeps, config.initMode.c_str(), config.seedConfig.c_str(), restart_path.c_str(), output_dir.c_str());
+    fprintf(stderr, "./source/assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK LnZ ks0 muAB mudrugdrugProb kd0 sweep [--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n");
+    write_invocation(stderr, config, g, sweep, restart_path, output_dir);
 
     for (int j = 0; j < 4; j++)
     {

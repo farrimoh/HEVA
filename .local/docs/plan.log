@@ -1,0 +1,54 @@
+# plan.log
+
+## 2026-01-04
+
+- [docs] Main vs with-drug branch comparison captured
+  - [2026-01-04-main-vs-with-drug-comparison.md](./comparisons/2026-01-04-main-vs-with-drug-comparison.md)
+
+## 2026-01-07
+
+- [docs] Main vs LBF refactor comparison captured
+  - [2026-01-07-main-vs-lbf-comparison.md](./comparisons/2026-01-07-main-vs-lbf-comparison.md)
+
+## 2026-03-24
+
+- [docs] Private refactor roadmap maintained
+  - [heva_refactor_plan.md](./heva_refactor_plan.md)
+
+- [major] Phase 0 and Phase 1 progress recorded
+  - [2026-03-24-phase-0-1-portable-build-and-config-boundary.md](./sessions/2026-03-24-phase-0-1-portable-build-and-config-boundary.md)
+
+- [major] Phase 2 progress recorded
+  - [2026-03-24-phase-2-thin-driver-and-smoke-run.md](./sessions/2026-03-24-phase-2-thin-driver-and-smoke-run.md)
+
+- [major] Phase 3 progress recorded
+  - [2026-03-24-phase-3-output-contract-and-cli-flags.md](./sessions/2026-03-24-phase-3-output-contract-and-cli-flags.md)
+
+- [major] Phase 4 progress recorded
+  - [2026-03-24-phase-4-config-file-mode.md](./sessions/2026-03-24-phase-4-config-file-mode.md)
+
+- [test] Testing phase T1 progress recorded
+  - [2026-03-24-testing-phase-t1.md](./sessions/2026-03-24-testing-phase-t1.md)
+
+- [feature] Seed-init consolidation recorded
+  - [2026-03-24-seed-init-consolidation.md](./sessions/2026-03-24-seed-init-consolidation.md)
+
+## 2026-03-25
+
+- [docs] Private docs structure normalized around the plan router
+  - [2026-03-25-plan-log-bootstrap.md](./sessions/2026-03-25-plan-log-bootstrap.md)
+
+- [bugfix] Refactor review findings captured for follow-up
+  - [2026-03-25-refactor-review-findings.md](./sessions/2026-03-25-refactor-review-findings.md)
+
+- [bugfix] 07:49 Fix plan and implementation start for index-capacity and deterministic seeds
+  - [2026-03-25-0749-fix-plan-and-implementation-start.md](./sessions/2026-03-25-0749-fix-plan-and-implementation-start.md)
+
+- [feature] 08:00 Seed initialization API consolidated into a dedicated module
+  - [2026-03-25-0800-seed-api-consolidation.md](./sessions/2026-03-25-0800-seed-api-consolidation.md)
+
+- [docs] 08:02 Phased next-steps backlog created from roadmap and session notes
+  - [2026-03-25-0802-phased-next-steps-backlog.md](./sessions/2026-03-25-0802-phased-next-steps-backlog.md)
+
+- [bugfix] 08:22 Phase A stabilized index-capacity handling behind clear run modes
+  - [2026-03-25-0822-phase-a-run-mode-and-capacity-policy.md](./sessions/2026-03-25-0822-phase-a-run-mode-and-capacity-policy.md)

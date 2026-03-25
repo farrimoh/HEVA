@@ -113,6 +113,7 @@ public:
 	int rejected_vmove;
 
 	int lenpoints;
+	unsigned long index_capacity;
 
 	int all_neigh;
 	double gb0;

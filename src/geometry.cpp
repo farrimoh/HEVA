@@ -39,6 +39,25 @@
 #define PI 3.14159265
 using namespace std;
 
+namespace
+{
+void fail_index_capacity(int id, unsigned long capacity, const char *kind)
+{
+	cerr << "Index capacity exceeded for " << kind << " id " << id
+		 << " with capacity " << capacity
+		 << ". Increase capacity with --run-mode extended --index-capacity N." << endl;
+	exit(-1);
+}
+
+void require_index_capacity(const geometry &g, int id, const char *kind)
+{
+	if (id < 0 || static_cast<unsigned long>(id) >= g.index_capacity)
+	{
+		fail_index_capacity(id, g.index_capacity, kind);
+	}
+}
+}
+
 geometry::geometry()
 {
 	// TODO Auto-generated constructor stub
@@ -50,6 +69,7 @@ geometry::geometry()
 	Nv5 = 0;
 	Nv6 = 0;
 	Nhe = 0;
+	index_capacity = 0;
 	epsilon = nullptr;
 	kappa = nullptr;
 	kappaPhi = nullptr;
@@ -140,6 +160,7 @@ void geometry::initialize(int Ntype0, unsigned long index_capacity)
 	T=1;
 
 	xi=0;
+	this->index_capacity = index_capacity;
 
 	lenpoints=200000;
 	dist_points = new double *[lenpoints];
@@ -182,7 +203,7 @@ void geometry::initialize(int Ntype0, unsigned long index_capacity)
 		}
 	}
 
-	for (int i = 0; i < 1000000; i++)
+	for (unsigned long i = 0; i < index_capacity; i++)
 	{
 		vidtoindex[i] = -1;
 		heidtoindex[i] = -1;
@@ -206,24 +227,27 @@ void geometry::update_index()
 		{
 			it->hein.clear();
 		}
+		require_index_capacity(*this, it->vid, "vertex");
 		vidtoindex[it->vid] = -1;
 	}
 	//cout <<"T1" <<endl;
 
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
 	{
+		require_index_capacity(*this, it->id, "half-edge");
 		heidtoindex[it->id] = -1;
 	}
 	//cout <<"T2" <<endl;
 	for (vector<VTX>::iterator it = v.begin(); it != v.end(); ++it)
 	{
-
+		require_index_capacity(*this, it->vid, "vertex");
 		vidtoindex[it->vid] = distance(v.begin(), it);
 		//cout << "vid :" << it->vid << "vindex" <<  distance(v.begin(),it) <<endl;
 	}
 	//cout <<"T3" <<endl;
 	for (vector<HE>::iterator it = he.begin(); it != he.end(); ++it)
 	{
+		require_index_capacity(*this, it->id, "half-edge");
 		heidtoindex[it->id] = distance(he.begin(), it);
 		//cout << "heid :" << it->id << "heindex" <<  distance(he.begin(),it) <<endl;
 	}
@@ -996,6 +1020,7 @@ int geometry::connectedH(int heid0, int heid1)
 
 void geometry::add_vertex(double *xyz)
 {
+	require_index_capacity(*this, Nvlast, "vertex");
 	VTX *vtxi;
 	vtxi = new VTX;
 	vtxi->vid = Nvlast;
@@ -1571,6 +1596,9 @@ void geometry::make_hexamer()
 
 void geometry::he_initialize(int heindex, int heid0, int vin0, int vout0, int etype, int b_index)
 {
+	require_index_capacity(*this, heid0, "half-edge");
+	require_index_capacity(*this, vin0, "vertex");
+	require_index_capacity(*this, vout0, "vertex");
 	he[heindex].id = heid0;
 	he[heindex].opid = -1;
 	he[heindex].vin = vin0;

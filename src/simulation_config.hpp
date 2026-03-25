@@ -7,6 +7,7 @@ struct SimulationConfig
 {
     unsigned long seed;
     unsigned long indexCapacity;
+    std::string runMode;
     unsigned long maxSweeps;
     std::string initMode;
     std::string seedConfig;

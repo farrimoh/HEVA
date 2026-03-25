@@ -11,6 +11,10 @@
 
 namespace
 {
+const unsigned long kMinimumIndexCapacity = 1000000UL;
+const unsigned long kTestIndexCapacity = 1000000UL;
+const unsigned long kRunIndexCapacity = 2000000UL;
+
 struct FieldSpec
 {
     int index;
@@ -132,7 +136,8 @@ bool parse_double_string(const std::string &text, double &value)
 
 void set_default_config(SimulationConfig &config)
 {
-    config.indexCapacity = 1000000UL;
+    config.indexCapacity = 0UL;
+    config.runMode.clear();
     config.maxSweeps = 0UL;
     config.initMode = "restart";
     config.seedConfig = "triangle";
@@ -145,8 +150,83 @@ bool is_valid_seed_config(const std::string &value)
     return value == "triangle" || value == "pentamer" || value == "hexamer";
 }
 
+bool is_valid_run_mode(const std::string &value)
+{
+    return value == "test" || value == "run" || value == "extended";
+}
+
+bool validate_index_capacity_value(unsigned long value)
+{
+    return value >= kMinimumIndexCapacity && value <= static_cast<unsigned long>(INT_MAX);
+}
+
+bool finalize_run_mode(SimulationConfig &config, std::string &error_message)
+{
+    std::string mode = config.runMode;
+    if (mode.empty())
+    {
+        mode = config.indexCapacity == 0UL ? "run" : "extended";
+    }
+
+    if (!is_valid_run_mode(mode))
+    {
+        error_message = "Invalid value for --run-mode. Expected test, run, or extended.\n" + assemble_usage();
+        return false;
+    }
+
+    if (mode == "test")
+    {
+        if (config.indexCapacity != 0UL)
+        {
+            error_message = "The test run mode uses a fixed preset and cannot be combined with --index-capacity or indexCapacity.\n" + assemble_usage();
+            return false;
+        }
+        config.indexCapacity = kTestIndexCapacity;
+    }
+    else if (mode == "run")
+    {
+        if (config.indexCapacity != 0UL)
+        {
+            error_message = "The run mode uses a fixed preset and cannot be combined with --index-capacity or indexCapacity.\n" + assemble_usage();
+            return false;
+        }
+        config.indexCapacity = kRunIndexCapacity;
+    }
+    else
+    {
+        if (config.indexCapacity == 0UL)
+        {
+            error_message = "Extended run mode requires --index-capacity (or indexCapacity in the config file).\n" + assemble_usage();
+            return false;
+        }
+        if (!validate_index_capacity_value(config.indexCapacity))
+        {
+            std::ostringstream message;
+            message << "Invalid value for index capacity. Extended mode requires a value between "
+                    << kMinimumIndexCapacity << " and " << INT_MAX << ".\n"
+                    << assemble_usage();
+            error_message = message.str();
+            return false;
+        }
+    }
+
+    config.runMode = mode;
+    return true;
+}
+
 bool apply_optional_argument(const std::string &option, const std::string &value, SimulationConfig &config, std::string &error_message)
 {
+    if (option == "--run-mode")
+    {
+        if (!is_valid_run_mode(value))
+        {
+            error_message = "Invalid value for --run-mode. Expected test, run, or extended.\n" + assemble_usage();
+            return false;
+        }
+        config.runMode = value;
+        return true;
+    }
+
     if (option == "--index-capacity")
     {
         if (!parse_unsigned_long_string(value, config.indexCapacity) || config.indexCapacity == 0 || config.indexCapacity > static_cast<unsigned long>(INT_MAX))
@@ -353,6 +433,17 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
             continue;
         }
 
+        if (key == "runMode" || key == "run_mode")
+        {
+            if (!is_valid_run_mode(value))
+            {
+                error_message = "Invalid value for runMode in config file.";
+                return false;
+            }
+            config.runMode = value;
+            continue;
+        }
+
         if (key == "maxSweeps" || key == "max_sweeps")
         {
             if (!parse_unsigned_long_string(value, config.maxSweeps))
@@ -441,8 +532,14 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
 
 std::string assemble_usage()
 {
-    return "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
-           "   or: ./assemble --config PATH [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]";
+    std::ostringstream usage;
+    usage << "usage: ./assemble seed epsilon0 kappa0 kappaPhi0 theta0 theta1 LnK muCd ks0 dmu dummydg mudrug gdrug kd0 dg12 dg01 dg20 dg33 dg00 dgother "
+          << "[--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
+          << "   or: ./assemble --config PATH [--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
+          << "   run modes: test=" << kTestIndexCapacity
+          << ", run=" << kRunIndexCapacity
+          << ", extended unlocks --index-capacity >= " << kMinimumIndexCapacity;
+    return usage.str();
 }
 
 bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, std::string &error_message)
@@ -461,6 +558,10 @@ bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, st
             return false;
         }
         if (!parse_optional_arguments(argc, argv, 3, config, error_message))
+        {
+            return false;
+        }
+        if (!finalize_run_mode(config, error_message))
         {
             return false;
         }
@@ -518,6 +619,11 @@ bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, st
     }
 
     if (!parse_optional_arguments(argc, argv, 21, config, error_message))
+    {
+        return false;
+    }
+
+    if (!finalize_run_mode(config, error_message))
     {
         return false;
     }
