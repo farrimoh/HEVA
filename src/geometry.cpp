@@ -108,6 +108,7 @@ geometry::geometry()
 	Nv5 = 0;
 	Nv6 = 0;
 	Nhe = 0;
+	lenpoints = 0;
 	index_capacity = 0;
 	epsilon = nullptr;
 	kappa = nullptr;
@@ -115,6 +116,12 @@ geometry::geometry()
 	l0 = nullptr;
 	theta0 = nullptr;
 	phi0 = nullptr;
+	mu = nullptr;
+	gb = nullptr;
+	gdrug = nullptr;
+	dist_points = nullptr;
+	vidtoindex = nullptr;
+	heidtoindex = nullptr;
 }
 
 geometry::~geometry()
@@ -131,8 +138,30 @@ geometry::~geometry()
 	delete[] mu;
 	delete[] vidtoindex;
 	delete[] heidtoindex;
-	delete[] gb;
-	delete[] gdrug;
+	if (gb != nullptr)
+	{
+		for (int i = 0; i < Ntype; ++i)
+		{
+			delete[] gb[i];
+		}
+		delete[] gb;
+	}
+	if (gdrug != nullptr)
+	{
+		for (int i = 0; i < Ntype; ++i)
+		{
+			delete[] gdrug[i];
+		}
+		delete[] gdrug;
+	}
+	if (dist_points != nullptr)
+	{
+		for (int i = 0; i < lenpoints; ++i)
+		{
+			delete[] dist_points[i];
+		}
+		delete[] dist_points;
+	}
 	if (v.size() > 0)
 	{
 		v.clear();

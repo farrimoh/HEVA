@@ -61,3 +61,6 @@
 
 - [feature] 08:55 Phase D localized RNG ownership inside the main driver
   - [2026-03-25-0855-phase-d-local-rng-ownership.md](./sessions/2026-03-25-0855-phase-d-local-rng-ownership.md)
+
+- [feature] 09:05 Phase E cleaned up geometry-owned nested heap allocations
+  - [2026-03-25-0905-phase-e-geometry-memory-cleanup.md](./sessions/2026-03-25-0905-phase-e-geometry-memory-cleanup.md)
