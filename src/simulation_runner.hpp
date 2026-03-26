@@ -65,6 +65,7 @@ enum SimulationStopReason
 SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &config);
 void initialize_from_restart(geometry &g, gsl_rng *rng, const char *filename, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings);
 void initialize_from_seed(geometry &g, gsl_rng *rng, const char *seed_config, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings);
+SimulationStopReason run_relaxation_loop(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long seed, time_t start_time, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings);
 SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long seed, time_t start_time, unsigned long &sweep, double ks0, SimulationRunStats &stats, const SimulationLoopSettings &settings);
 void finalize_simulation(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long seed, time_t start_time, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings, SimulationStopReason stop_reason);
 

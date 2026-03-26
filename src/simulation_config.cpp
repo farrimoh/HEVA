@@ -132,6 +132,7 @@ void set_default_config(SimulationConfig &config)
     config.engine.runMode.clear();
     config.runtime.maxSweeps = 0UL;
     config.runtime.outputDir = ".";
+    config.runtime.workflow = "assembly";
     config.initialization.mode = "restart";
     config.initialization.seedConfig = "triangle";
     config.initialization.restartPath = "restart_lammps.dat";
@@ -147,9 +148,36 @@ bool is_valid_run_mode(const std::string &value)
     return value == "test" || value == "run" || value == "extended";
 }
 
+bool is_valid_runtime_workflow(const std::string &value)
+{
+    return value == "assembly" || value == "relaxation";
+}
+
 bool validate_index_capacity_value(unsigned long value)
 {
     return value >= kMinimumIndexCapacity && value <= static_cast<unsigned long>(INT_MAX);
+}
+
+bool finalize_runtime_workflow(SimulationConfig &config, std::string &error_message)
+{
+    if (config.runtime.workflow.empty())
+    {
+        config.runtime.workflow = "assembly";
+    }
+
+    if (!is_valid_runtime_workflow(config.runtime.workflow))
+    {
+        error_message = "Invalid value for runtime.workflow. Expected assembly or relaxation.\n" + assemble_usage();
+        return false;
+    }
+
+    if (config.runtime.workflow == "relaxation" && config.runtime.maxSweeps == 0UL)
+    {
+        error_message = "Relaxation workflow requires runtime.maxSweeps (or --max-sweeps) to be greater than zero.\n" + assemble_usage();
+        return false;
+    }
+
+    return true;
 }
 
 bool finalize_run_mode(SimulationConfig &config, std::string &error_message)
@@ -236,6 +264,17 @@ bool apply_optional_argument(const std::string &option, const std::string &value
             error_message = "Invalid value for --max-sweeps.\n" + assemble_usage();
             return false;
         }
+        return true;
+    }
+
+    if (option == "--workflow")
+    {
+        if (!is_valid_runtime_workflow(value))
+        {
+            error_message = "Invalid value for --workflow. Expected assembly or relaxation.\n" + assemble_usage();
+            return false;
+        }
+        config.runtime.workflow = value;
         return true;
     }
 
@@ -562,6 +601,17 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
                 continue;
             }
 
+            if (key == "workflow")
+            {
+                if (!is_valid_runtime_workflow(value))
+                {
+                    error_message = "Invalid value for runtime.workflow.";
+                    return false;
+                }
+                config.runtime.workflow = value;
+                continue;
+            }
+
             error_message = std::string("Unknown config key in [runtime]: ") + key;
             return false;
         }
@@ -612,8 +662,9 @@ std::string assemble_usage()
 {
     std::ostringstream usage;
     usage << "usage: ./assemble --config PATH "
-          << "[--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
+          << "[--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--workflow MODE] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
           << "config sections: [capsid_geometry], [simulation], [drug], [init], [runtime], [engine]\n"
+          << "runtime workflows: assembly (default), relaxation (move_vertex only)\n"
           << "engine profiles: test=" << kTestIndexCapacity
           << ", run=" << kRunIndexCapacity
           << ", extended unlocks --index-capacity >= " << kMinimumIndexCapacity;
@@ -659,7 +710,8 @@ std::string render_simulation_config(const SimulationConfig &config)
     output << "[runtime]\n";
     output << "seed = " << config.runtime.seed << "\n";
     output << "maxSweeps = " << config.runtime.maxSweeps << "\n";
-    output << "outputDir = " << config.runtime.outputDir << "\n\n";
+    output << "outputDir = " << config.runtime.outputDir << "\n";
+    output << "workflow = " << config.runtime.workflow << "\n\n";
 
     output << "[engine]\n";
     output << "profile = " << config.engine.runMode << "\n";
@@ -698,6 +750,11 @@ bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, st
     }
 
     if (!finalize_run_mode(config, error_message))
+    {
+        return false;
+    }
+
+    if (!finalize_runtime_workflow(config, error_message))
     {
         return false;
     }

@@ -62,6 +62,7 @@ int main()
         "[runtime]\n"
         "seed = 7\n"
         "outputDir = out\n"
+        "workflow = assembly\n"
         "\n"
         "[engine]\n"
         "profile = run\n");
@@ -76,6 +77,7 @@ int main()
     assert(config.engine.indexCapacity == 2000000UL);
     assert(config.engine.runMode == "run");
     assert(config.runtime.maxSweeps == 0UL);
+    assert(config.runtime.workflow == "assembly");
     assert(config.initialization.mode == "restart");
     assert(config.initialization.seedConfig == "triangle");
     assert(config.initialization.restartPath == "restart_lammps.dat");
@@ -102,6 +104,8 @@ int main()
     char override_val6[] = "extended";
     char override_opt7[] = "--index-capacity";
     char override_val7[] = "2000000";
+    char override_opt8[] = "--workflow";
+    char override_val8[] = "relaxation";
     char *with_overrides_argv[] = {
         arg0, cfg_opt, cfg_path,
         override_opt1, override_val1,
@@ -111,16 +115,22 @@ int main()
         override_opt5, override_val5,
         override_opt6, override_val6,
         override_opt7, override_val7,
+        override_opt8, override_val8,
     };
-    parsed = parse_simulation_config(17, with_overrides_argv, config, error_message);
+    parsed = parse_simulation_config(19, with_overrides_argv, config, error_message);
     assert(parsed);
     assert(config.runtime.maxSweeps == 25UL);
+    assert(config.runtime.workflow == "relaxation");
     assert(config.initialization.mode == "seed");
     assert(config.initialization.seedConfig == "hexamer");
     assert(config.initialization.restartPath == "fixtures/restart_lammps.dat");
     assert(config.runtime.outputDir == "runs/smoke");
     assert(config.engine.runMode == "extended");
     assert(config.engine.indexCapacity == 2000000UL);
+    const std::string rendered_override_config = render_simulation_config(config);
+    assert(rendered_override_config.find("[capsid_geometry]") != std::string::npos);
+    assert(rendered_override_config.find("profile = extended") != std::string::npos);
+    assert(rendered_override_config.find("workflow = relaxation") != std::string::npos);
 
     char fixture_path[] = "fixtures/smoke_config.in";
     char cfg_override_opt[] = "--max-sweeps";
@@ -136,6 +146,7 @@ int main()
     assert(config.initialization.seedConfig == "triangle");
     assert(config.initialization.restartPath == "fixtures/restart_lammps.dat");
     assert(config.runtime.outputDir == "fixtures/generated-output");
+    assert(config.runtime.workflow == "assembly");
 
     const std::string bad_config_path = "simulation_config_bad.in";
     write_file(
@@ -189,19 +200,59 @@ int main()
     assert(!parsed);
     assert(error_message.find("Extended run mode requires") != std::string::npos);
 
+    const std::string bad_relaxation_path = "simulation_config_relaxation_bad.in";
+    write_file(
+        bad_relaxation_path,
+        "[capsid_geometry]\n"
+        "epsilon0 = 4200\n"
+        "kappa0 = 40\n"
+        "kappaPhi0 = 800\n"
+        "theta0 = 0.240\n"
+        "theta1 = 0.480\n"
+        "gb0 = -9.8\n"
+        "dg12 = 0.3\n"
+        "dg01 = 0.1\n"
+        "dg20 = -0.1\n"
+        "dg33 = 0.0\n"
+        "dg00 = -0.6\n"
+        "dgother = -0.95\n"
+        "\n"
+        "[simulation]\n"
+        "muCd = -11.5\n"
+        "ks0 = 0.02\n"
+        "dmu = -4.5\n"
+        "dg = 0.0\n"
+        "\n"
+        "[drug]\n"
+        "mudrug = 0.0\n"
+        "gdrug0 = 0.0\n"
+        "kd0 = 0.0\n"
+        "\n"
+        "[runtime]\n"
+        "seed = 7\n"
+        "workflow = relaxation\n"
+        "\n"
+        "[engine]\n"
+        "profile = run\n");
+
+    char bad_relaxation_cfg[] = "simulation_config_relaxation_bad.in";
+    char *bad_relaxation_argv[] = {arg0, cfg_opt, bad_relaxation_cfg};
+    parsed = parse_simulation_config(3, bad_relaxation_argv, config, error_message);
+    assert(!parsed);
+    assert(error_message.find("Relaxation workflow requires") != std::string::npos);
+
     assert(assemble_usage().find("--config PATH") != std::string::npos);
+    assert(assemble_usage().find("--workflow MODE") != std::string::npos);
     assert(assemble_usage().find("[capsid_geometry]") != std::string::npos);
     assert(assemble_usage().find("[simulation]") != std::string::npos);
     assert(assemble_usage().find("[drug]") != std::string::npos);
     assert(assemble_usage().find("[runtime]") != std::string::npos);
     assert(assemble_usage().find("[engine]") != std::string::npos);
 
-    assert(render_simulation_config(config).find("[capsid_geometry]") != std::string::npos);
-    assert(render_simulation_config(config).find("profile = extended") != std::string::npos);
-
     std::remove(good_config_path.c_str());
     std::remove(bad_config_path.c_str());
     std::remove(bad_extended_path.c_str());
+    std::remove(bad_relaxation_path.c_str());
 
     std::cout << "simulation_config checks passed" << std::endl;
     return 0;

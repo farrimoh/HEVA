@@ -1,5 +1,6 @@
 test*
 .local/
 *.o
+*.d
 assemble
 checks/test_simulation_config

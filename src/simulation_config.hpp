@@ -46,6 +46,7 @@ struct RuntimeConfig
     unsigned long seed;
     unsigned long maxSweeps;
     std::string outputDir;
+    std::string workflow;
 };
 
 struct EngineConfig

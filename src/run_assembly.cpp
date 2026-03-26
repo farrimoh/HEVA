@@ -262,6 +262,7 @@ int main(int argc, char **argv)
     unsigned long sweep = 0;
     fprintf(stderr, "%s\n", assemble_usage().c_str());
     write_invocation(stderr, persisted_config, sweep);
+    cout << "# WORKFLOW " << config.runtime.workflow << endl;
 
     for (int j = 0; j < 4; j++)
     {
@@ -278,7 +279,15 @@ int main(int argc, char **argv)
     {
         initialize_from_seed(g, rng, config.initialization.seedConfig.c_str(), sweep, stats, settings);
     }
-    SimulationStopReason stop_reason = run_simulation_loop(g, rng, ofile, config.runtime.seed, timer1, sweep, config.simulation.ks0, stats, settings);
+    SimulationStopReason stop_reason = SIMULATION_STOP_MAX_SWEEPS;
+    if (config.runtime.workflow == "relaxation")
+    {
+        stop_reason = run_relaxation_loop(g, rng, ofile, config.runtime.seed, timer1, sweep, stats, settings);
+    }
+    else
+    {
+        stop_reason = run_simulation_loop(g, rng, ofile, config.runtime.seed, timer1, sweep, config.simulation.ks0, stats, settings);
+    }
     finalize_simulation(g, rng, ofile, config.runtime.seed, timer1, sweep, stats, settings, stop_reason);
 
     fclose(ofile);

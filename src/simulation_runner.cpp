@@ -254,6 +254,33 @@ void initialize_from_seed(geometry &g, gsl_rng *rng, const char *seed_config, un
     dump_restart_lammps_data_file(g, sweep);
 }
 
+SimulationStopReason run_relaxation_loop(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long seed, time_t start_time, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings)
+{
+    while (true)
+    {
+        if (settings.maxSweeps > 0 && sweep >= settings.maxSweeps)
+        {
+            return SIMULATION_STOP_MAX_SWEEPS;
+        }
+
+        move_vertex(g, rng);
+        g.update_boundary();
+
+        double energy = 0.0;
+        if (sweep % settings.freq_log == 0)
+        {
+            energy = write_log_snapshot(g, ofile, sweep, seed, start_time);
+        }
+
+        if (sweep % settings.freq_out == 0)
+        {
+            print_periodic_summary(g, energy, sweep, start_time, stats);
+        }
+
+        sweep++;
+    }
+}
+
 SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long seed, time_t start_time, unsigned long &sweep, double ks0, SimulationRunStats &stats, const SimulationLoopSettings &settings)
 {
     while (g.Nsurf > 0)
