@@ -47,6 +47,7 @@ struct SimulationLoopSettings
     int freq_out;
     int initial_equilibration_steps;
     int final_equilibration_steps;
+    bool relaxationSweepsAreRelative;
     unsigned long maxSweeps;
     unsigned long cgSampleStartSweep;
     unsigned long cgSampleEvery;

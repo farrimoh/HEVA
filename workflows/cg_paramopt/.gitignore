@@ -1,3 +1,5 @@
 runs/
 generated/
 data/
+__pycache__/
+*.pyc

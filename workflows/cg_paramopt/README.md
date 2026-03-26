@@ -36,10 +36,17 @@ The HEVA backend now supports:
 ```text
 workflows/cg_paramopt/
 |-- README.md
+|-- cg_paramopt/
+|   |-- config.py
+|   |-- metrics.py
+|   |-- runner.py
+|   |-- trial.py
+|   `-- verify.py
 |-- config/
 |   `-- base_config.in
 `-- scripts/
     |-- extract_aa_data.py
+    |-- optimize.py
     `-- run_trial.py
 ```
 
@@ -90,6 +97,38 @@ python3 workflows/cg_paramopt/scripts/extract_aa_data.py \
   --input-dir /path/to/AA-graphdata \
   --output workflows/cg_paramopt/data/AAdata.csv
 ```
+
+## Optimization Driver
+
+The optimizer path expects a Python environment with:
+
+```bash
+python3 -m venv .venv
+. .venv/bin/activate
+pip install "setuptools<81" numpy pandas matplotlib scipy hyperopt
+```
+
+`hyperopt 0.2.7` still imports `pkg_resources`, so the tested environment pins `setuptools` below `81`.
+
+For one scored HEVA-backed trial:
+
+```bash
+python3 workflows/cg_paramopt/scripts/optimize.py \
+  --aa-data /path/to/AAdata.csv \
+  --initial-structure /path/to/Initial_frame.dat \
+  --single-run 2.15 1.25 1.80
+```
+
+For a Hyperopt search:
+
+```bash
+python3 workflows/cg_paramopt/scripts/optimize.py \
+  --aa-data /path/to/AAdata.csv \
+  --initial-structure /path/to/Initial_frame.dat \
+  --max-evals 25
+```
+
+This keeps the optimizer in Python while leaving import, relaxation, and observable sampling in HEVA.
 
 ## Outputs
 

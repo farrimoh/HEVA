@@ -4,15 +4,15 @@
 from __future__ import annotations
 
 import argparse
-import configparser
-import subprocess
 import sys
-from datetime import datetime
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+WORKFLOW_DIR = SCRIPT_DIR.parent
+if str(WORKFLOW_DIR) not in sys.path:
+    sys.path.insert(0, str(WORKFLOW_DIR))
 
-def repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+from cg_paramopt.trial import TrialSpec, execute_trial
 
 
 def parse_args() -> argparse.Namespace:
@@ -45,44 +45,14 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_config(path: Path) -> configparser.ConfigParser:
-    parser = configparser.ConfigParser()
-    parser.optionxform = str
-    with path.open("r", encoding="utf-8") as handle:
-        parser.read_file(handle)
-    return parser
-
-
-def write_config(config: configparser.ConfigParser, path: Path) -> None:
-    with path.open("w", encoding="utf-8") as handle:
-        config.write(handle)
-
-
-def format_float(value: float) -> str:
-    return f"{value:.6f}"
-
-
-def build_run_dir(root: Path, explicit_output_dir: Path | None) -> Path:
-    if explicit_output_dir is not None:
-        return explicit_output_dir.resolve()
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    return (root / "workflows" / "cg_paramopt" / "runs" / f"{stamp}_trial").resolve()
-
-
-def set_optional_float(config: configparser.ConfigParser, section: str, key: str, value: float | None) -> None:
-    if value is not None:
-        config[section][key] = format_float(value)
-
-
 def main() -> int:
     args = parse_args()
-    root = repo_root()
 
-    assemble_path = args.assemble.resolve() if args.assemble else (root / "src" / "assemble").resolve()
-    base_config_path = args.base_config.resolve() if args.base_config else (root / "workflows" / "cg_paramopt" / "config" / "base_config.in").resolve()
+    workflow_dir = WORKFLOW_DIR.resolve()
+    repo_root = workflow_dir.parents[1]
+    assemble_path = args.assemble.resolve() if args.assemble else (repo_root / "src" / "assemble").resolve()
+    base_config_path = args.base_config.resolve() if args.base_config else (workflow_dir / "config" / "base_config.in").resolve()
     initial_structure_path = args.initial_structure.resolve()
-    run_dir = build_run_dir(root, args.output_dir)
-    run_dir.mkdir(parents=True, exist_ok=True)
 
     if not assemble_path.exists():
         print(f"assemble binary not found: {assemble_path}", file=sys.stderr)
@@ -91,65 +61,59 @@ def main() -> int:
     if not initial_structure_path.exists():
         print(f"initial structure not found: {initial_structure_path}", file=sys.stderr)
         return 1
-
     if args.relax_sweeps < 0 or args.frames <= 0 or args.sample_every <= 0:
         print("relax-sweeps must be >= 0, and frames/sample-every must be > 0.", file=sys.stderr)
         return 1
 
-    config = load_config(base_config_path)
-    config["capsid_geometry"]["epsilon0"] = format_float(args.epsilon0)
-    config["capsid_geometry"]["kappa0"] = format_float(args.kappa0)
-    config["capsid_geometry"]["kappaPhi0"] = format_float(args.kappaPhi0)
-    set_optional_float(config, "capsid_geometry", "theta0", args.theta0)
-    set_optional_float(config, "capsid_geometry", "theta1", args.theta1)
-    set_optional_float(config, "capsid_geometry", "theta2", args.theta2)
-    set_optional_float(config, "capsid_geometry", "theta3", args.theta3)
-    set_optional_float(config, "capsid_geometry", "l0", args.l0)
-    set_optional_float(config, "capsid_geometry", "l1", args.l1)
-    set_optional_float(config, "capsid_geometry", "phi33", args.phi33)
-    set_optional_float(config, "capsid_geometry", "phi12", args.phi12)
-    set_optional_float(config, "capsid_geometry", "phi01", args.phi01)
-    set_optional_float(config, "capsid_geometry", "phi20", args.phi20)
+    spec = TrialSpec(
+        workflow_dir=workflow_dir,
+        assemble_path=assemble_path,
+        base_config_path=base_config_path,
+        initial_structure_path=initial_structure_path,
+        init_mode=args.init_mode,
+        epsilon0=args.epsilon0,
+        kappa0=args.kappa0,
+        kappaPhi0=args.kappaPhi0,
+        theta0=args.theta0,
+        theta1=args.theta1,
+        theta2=args.theta2,
+        theta3=args.theta3,
+        l0=args.l0,
+        l1=args.l1,
+        phi33=args.phi33,
+        phi12=args.phi12,
+        phi01=args.phi01,
+        phi20=args.phi20,
+        seed=args.seed,
+        relax_sweeps=args.relax_sweeps,
+        frames=args.frames,
+        sample_every=args.sample_every,
+        profile=args.profile,
+        index_capacity=args.index_capacity,
+        output_dir=args.output_dir.resolve() if args.output_dir else None,
+    )
 
-    total_sweeps = args.relax_sweeps + args.frames * args.sample_every
-    config["init"]["mode"] = args.init_mode
-    config["init"]["restartPath"] = str(initial_structure_path)
-    config["runtime"]["seed"] = str(args.seed)
-    config["runtime"]["maxSweeps"] = str(total_sweeps)
-    config["runtime"]["outputDir"] = str(run_dir)
-    config["runtime"]["workflow"] = "relaxation"
-    config["engine"]["profile"] = args.profile
-    config["cg_paramopt"]["sampleStartSweep"] = str(args.relax_sweeps)
-    config["cg_paramopt"]["sampleEvery"] = str(args.sample_every)
-    config["cg_paramopt"]["sampleOutputPath"] = "data.dat"
-
-    if args.profile == "extended":
-        if args.index_capacity is None:
-            print("--index-capacity is required when --profile extended", file=sys.stderr)
-            return 1
-        config["engine"]["indexCapacity"] = str(args.index_capacity)
-    else:
-        config["engine"].pop("indexCapacity", None)
-
-    generated_config_path = run_dir / "trial_config.in"
-    write_config(config, generated_config_path)
-
-    command = [str(assemble_path), "--config", str(generated_config_path)]
-
-    print(f"Run directory: {run_dir}")
-    print(f"Generated config: {generated_config_path}")
+    execution = execute_trial(spec, dry_run=args.dry_run)
+    print(f"Run directory: {execution.run_dir}")
+    print(f"Generated config: {execution.generated_config_path}")
     print("Command:")
-    print(" ".join(command))
+    print(" ".join(execution.command))
 
     if args.dry_run:
         return 0
 
-    subprocess.run(command, check=True, cwd=root / "src")
+    if execution.stdout:
+        print(execution.stdout, end="" if execution.stdout.endswith("\n") else "\n")
+
+    if execution.returncode != 0:
+        return execution.returncode
+
     print("Trial completed.")
-    print(f"Sampled geometry: {run_dir / 'data.dat'}")
-    print(f"Restart snapshot: {run_dir / 'restart_lammps.dat'}")
+    print(f"Sampled geometry: {execution.run_dir / 'data.dat'}")
+    print(f"Restart snapshot: {execution.run_dir / 'restart_lammps.dat'}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

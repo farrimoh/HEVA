@@ -42,6 +42,7 @@ SimulationLoopSettings::SimulationLoopSettings()
       freq_out(1000),
       initial_equilibration_steps(1000),
       final_equilibration_steps(1000),
+      relaxationSweepsAreRelative(false),
       maxSweeps(0UL),
       cgSampleStartSweep(0UL),
       cgSampleEvery(0UL),
@@ -212,6 +213,7 @@ void write_stop_snapshot(geometry &g, FILE *ofile, unsigned long sweep, unsigned
 SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &config)
 {
     SimulationLoopSettings settings;
+    settings.relaxationSweepsAreRelative = (config.runtime.workflow == "relaxation");
     settings.maxSweeps = config.runtime.maxSweeps;
     settings.final_equilibration_steps = 10 * settings.freq_log;
     settings.cgSampleStartSweep = config.cgParamOpt.sampleStartSweep;
@@ -247,6 +249,11 @@ void initialize_from_restart(geometry &g, gsl_rng *rng, const char *filename, un
     if (g.Nboundary == 1)
     {
         dump_restart_lammps_data_file(g, sweep);
+    }
+
+    if (settings.relaxationSweepsAreRelative)
+    {
+        sweep = 0UL;
     }
 }
 
