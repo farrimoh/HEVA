@@ -136,11 +136,27 @@ void set_default_config(SimulationConfig &config)
     config.initialization.mode = "restart";
     config.initialization.seedConfig = "triangle";
     config.initialization.restartPath = "restart_lammps.dat";
+    config.capsidGeometry.theta2 = 0.0;
+    config.capsidGeometry.theta3 = 0.0;
+    config.capsidGeometry.l0 = 1.05;
+    config.capsidGeometry.l1 = 0.95;
+    config.capsidGeometry.phi33 = 1.05;
+    config.capsidGeometry.phi12 = 1.17;
+    config.capsidGeometry.phi01 = 0.98;
+    config.capsidGeometry.phi20 = 1.05;
+    config.cgParamOpt.sampleStartSweep = 0UL;
+    config.cgParamOpt.sampleEvery = 0UL;
+    config.cgParamOpt.sampleOutputPath = "data.dat";
 }
 
 bool is_valid_seed_config(const std::string &value)
 {
     return value == "triangle" || value == "pentamer" || value == "hexamer";
+}
+
+bool is_valid_init_mode(const std::string &value)
+{
+    return value == "restart" || value == "seed" || value == "legacy_lammps" || value == "initial_frame";
 }
 
 bool is_valid_run_mode(const std::string &value)
@@ -175,6 +191,32 @@ bool finalize_runtime_workflow(SimulationConfig &config, std::string &error_mess
     {
         error_message = "Relaxation workflow requires runtime.maxSweeps (or --max-sweeps) to be greater than zero.\n" + assemble_usage();
         return false;
+    }
+
+    return true;
+}
+
+bool finalize_cg_paramopt_config(SimulationConfig &config, std::string &error_message)
+{
+    if (config.cgParamOpt.sampleEvery == 0UL)
+    {
+        if (config.cgParamOpt.sampleStartSweep != 0UL)
+        {
+            error_message = "CG ParamOpt sampling requires cg_paramopt.sampleEvery to be greater than zero.\n" + assemble_usage();
+            return false;
+        }
+        return true;
+    }
+
+    if (config.runtime.workflow != "relaxation")
+    {
+        error_message = "CG ParamOpt sampling requires runtime.workflow=relaxation.\n" + assemble_usage();
+        return false;
+    }
+
+    if (config.cgParamOpt.sampleOutputPath.empty())
+    {
+        config.cgParamOpt.sampleOutputPath = "data.dat";
     }
 
     return true;
@@ -291,7 +333,7 @@ bool apply_optional_argument(const std::string &option, const std::string &value
 
     if (option == "--init")
     {
-        if (value == "restart" || value == "seed")
+        if (is_valid_init_mode(value))
         {
             config.initialization.mode = value;
             return true;
@@ -302,7 +344,7 @@ bool apply_optional_argument(const std::string &option, const std::string &value
             config.initialization.seedConfig = value;
             return true;
         }
-        error_message = "Invalid value for --init. Expected restart, seed, triangle, pentamer, or hexamer.\n" + assemble_usage();
+        error_message = "Invalid value for --init. Expected restart, seed, initial_frame, legacy_lammps, triangle, pentamer, or hexamer.\n" + assemble_usage();
         return false;
     }
 
@@ -393,6 +435,14 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
     bool kappaPhi0_set = false;
     bool theta0_set = false;
     bool theta1_set = false;
+    bool theta2_set = false;
+    bool theta3_set = false;
+    bool l0_set = false;
+    bool l1_set = false;
+    bool phi33_set = false;
+    bool phi12_set = false;
+    bool phi01_set = false;
+    bool phi20_set = false;
     bool gb0_set = false;
     bool dg12_set = false;
     bool dg01_set = false;
@@ -416,6 +466,14 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
         {"kappaPhi0", &config.capsidGeometry.kappaPhi0, &kappaPhi0_set},
         {"theta0", &config.capsidGeometry.theta0, &theta0_set},
         {"theta1", &config.capsidGeometry.theta1, &theta1_set},
+        {"theta2", &config.capsidGeometry.theta2, &theta2_set},
+        {"theta3", &config.capsidGeometry.theta3, &theta3_set},
+        {"l0", &config.capsidGeometry.l0, &l0_set},
+        {"l1", &config.capsidGeometry.l1, &l1_set},
+        {"phi33", &config.capsidGeometry.phi33, &phi33_set},
+        {"phi12", &config.capsidGeometry.phi12, &phi12_set},
+        {"phi01", &config.capsidGeometry.phi01, &phi01_set},
+        {"phi20", &config.capsidGeometry.phi20, &phi20_set},
         {"gb0", &config.capsidGeometry.gb0, &gb0_set},
         {"dg12", &config.capsidGeometry.dg12, &dg12_set},
         {"dg01", &config.capsidGeometry.dg01, &dg01_set},
@@ -469,7 +527,8 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
                 current_section != "drug" &&
                 current_section != "init" &&
                 current_section != "runtime" &&
-                current_section != "engine")
+                current_section != "engine" &&
+                current_section != "cg_paramopt")
             {
                 error_message = std::string("Unknown config section: ") + current_section;
                 return false;
@@ -536,7 +595,7 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
         {
             if (key == "mode")
             {
-                if (value == "restart" || value == "seed")
+                if (is_valid_init_mode(value))
                 {
                     config.initialization.mode = value;
                     continue;
@@ -569,6 +628,38 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
             }
 
             error_message = std::string("Unknown config key in [init]: ") + key;
+            return false;
+        }
+
+        if (current_section == "cg_paramopt")
+        {
+            if (key == "sampleStartSweep")
+            {
+                if (!parse_unsigned_long_string(value, config.cgParamOpt.sampleStartSweep))
+                {
+                    error_message = "Invalid value for cg_paramopt.sampleStartSweep.";
+                    return false;
+                }
+                continue;
+            }
+
+            if (key == "sampleEvery")
+            {
+                if (!parse_unsigned_long_string(value, config.cgParamOpt.sampleEvery))
+                {
+                    error_message = "Invalid value for cg_paramopt.sampleEvery.";
+                    return false;
+                }
+                continue;
+            }
+
+            if (key == "sampleOutputPath")
+            {
+                config.cgParamOpt.sampleOutputPath = value;
+                continue;
+            }
+
+            error_message = std::string("Unknown config key in [cg_paramopt]: ") + key;
             return false;
         }
 
@@ -654,6 +745,15 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
         return false;
     }
 
+    if (!theta2_set)
+    {
+        config.capsidGeometry.theta2 = config.capsidGeometry.theta0;
+    }
+    if (!theta3_set)
+    {
+        config.capsidGeometry.theta3 = config.capsidGeometry.theta0;
+    }
+
     return true;
 }
 }
@@ -663,7 +763,8 @@ std::string assemble_usage()
     std::ostringstream usage;
     usage << "usage: ./assemble --config PATH "
           << "[--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--workflow MODE] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
-          << "config sections: [capsid_geometry], [simulation], [drug], [init], [runtime], [engine]\n"
+          << "config sections: [capsid_geometry], [simulation], [drug], [init], [runtime], [engine], [cg_paramopt]\n"
+          << "init modes: restart, seed, initial_frame (preferred), legacy_lammps (alias)\n"
           << "runtime workflows: assembly (default), relaxation (move_vertex only)\n"
           << "engine profiles: test=" << kTestIndexCapacity
           << ", run=" << kRunIndexCapacity
@@ -683,6 +784,14 @@ std::string render_simulation_config(const SimulationConfig &config)
     output << "kappaPhi0 = " << config.capsidGeometry.kappaPhi0 << "\n";
     output << "theta0 = " << config.capsidGeometry.theta0 << "\n";
     output << "theta1 = " << config.capsidGeometry.theta1 << "\n";
+    output << "theta2 = " << config.capsidGeometry.theta2 << "\n";
+    output << "theta3 = " << config.capsidGeometry.theta3 << "\n";
+    output << "l0 = " << config.capsidGeometry.l0 << "\n";
+    output << "l1 = " << config.capsidGeometry.l1 << "\n";
+    output << "phi33 = " << config.capsidGeometry.phi33 << "\n";
+    output << "phi12 = " << config.capsidGeometry.phi12 << "\n";
+    output << "phi01 = " << config.capsidGeometry.phi01 << "\n";
+    output << "phi20 = " << config.capsidGeometry.phi20 << "\n";
     output << "gb0 = " << config.capsidGeometry.gb0 << "\n";
     output << "dg12 = " << config.capsidGeometry.dg12 << "\n";
     output << "dg01 = " << config.capsidGeometry.dg01 << "\n";
@@ -720,6 +829,14 @@ std::string render_simulation_config(const SimulationConfig &config)
         output << "indexCapacity = " << config.engine.indexCapacity << "\n";
     }
 
+    if (config.cgParamOpt.sampleEvery > 0UL)
+    {
+        output << "\n[cg_paramopt]\n";
+        output << "sampleStartSweep = " << config.cgParamOpt.sampleStartSweep << "\n";
+        output << "sampleEvery = " << config.cgParamOpt.sampleEvery << "\n";
+        output << "sampleOutputPath = " << config.cgParamOpt.sampleOutputPath << "\n";
+    }
+
     return output.str();
 }
 
@@ -755,6 +872,11 @@ bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, st
     }
 
     if (!finalize_runtime_workflow(config, error_message))
+    {
+        return false;
+    }
+
+    if (!finalize_cg_paramopt_config(config, error_message))
     {
         return false;
     }

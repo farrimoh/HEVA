@@ -10,6 +10,14 @@ struct CapsidGeometryConfig
     double kappaPhi0;
     double theta0;
     double theta1;
+    double theta2;
+    double theta3;
+    double l0;
+    double l1;
+    double phi33;
+    double phi12;
+    double phi01;
+    double phi20;
     double gb0;
     double dg12;
     double dg01;
@@ -55,6 +63,13 @@ struct EngineConfig
     std::string runMode;
 };
 
+struct CGParamOptConfig
+{
+    unsigned long sampleStartSweep;
+    unsigned long sampleEvery;
+    std::string sampleOutputPath;
+};
+
 struct SimulationConfig
 {
     CapsidGeometryConfig capsidGeometry;
@@ -63,6 +78,7 @@ struct SimulationConfig
     InitializationConfig initialization;
     RuntimeConfig runtime;
     EngineConfig engine;
+    CGParamOptConfig cgParamOpt;
 };
 
 std::string assemble_usage();

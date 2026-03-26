@@ -136,7 +136,7 @@ SimulationConfig make_persisted_run_config(const SimulationConfig &config, const
 {
     SimulationConfig persisted = config;
     persisted.runtime.outputDir = ".";
-    if (persisted.initialization.mode == "restart")
+    if (persisted.initialization.mode == "restart" || persisted.initialization.mode == "legacy_lammps" || persisted.initialization.mode == "initial_frame")
     {
         persisted.initialization.restartPath = relative_to_output_dir_or_absolute(output_dir, restart_path);
     }
@@ -180,9 +180,9 @@ int main(int argc, char **argv)
     const std::string restart_path = resolve_path_from(launch_dir, config.initialization.restartPath);
     const std::string output_dir = resolve_path_from(launch_dir, config.runtime.outputDir);
 
-    if (config.initialization.mode == "restart" && access(restart_path.c_str(), R_OK) != 0)
+    if ((config.initialization.mode == "restart" || config.initialization.mode == "legacy_lammps" || config.initialization.mode == "initial_frame") && access(restart_path.c_str(), R_OK) != 0)
     {
-        std::cerr << "Restart file is not readable: " << restart_path << std::endl;
+        std::cerr << "Initialization file is not readable: " << restart_path << std::endl;
         return -1;
     }
 
@@ -274,6 +274,10 @@ int main(int argc, char **argv)
     if (config.initialization.mode == "restart")
     {
         initialize_from_restart(g, rng, restart_path.c_str(), sweep, stats, settings);
+    }
+    else if (config.initialization.mode == "legacy_lammps" || config.initialization.mode == "initial_frame")
+    {
+        initialize_from_initial_frame_compat(g, restart_path.c_str(), sweep, stats, settings);
     }
     else
     {

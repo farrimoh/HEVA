@@ -42,7 +42,10 @@ SimulationLoopSettings::SimulationLoopSettings()
       freq_out(1000),
       initial_equilibration_steps(1000),
       final_equilibration_steps(1000),
-      maxSweeps(0UL)
+      maxSweeps(0UL),
+      cgSampleStartSweep(0UL),
+      cgSampleEvery(0UL),
+      cgSampleOutputPath("data.dat")
 {
 }
 
@@ -121,6 +124,25 @@ void print_periodic_summary(const geometry &g, double energy, unsigned long swee
     cout << "#########  avgAddInterval " << stats.avgAddInterval << " ###############" << endl;
 }
 
+void maybe_write_cg_paramopt_sample(geometry &g, unsigned long sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings)
+{
+    if (settings.cgSampleEvery == 0UL)
+    {
+        return;
+    }
+    if (sweep < settings.cgSampleStartSweep)
+    {
+        return;
+    }
+    if (((sweep - settings.cgSampleStartSweep) % settings.cgSampleEvery) != 0UL)
+    {
+        return;
+    }
+
+    dump_cg_paramopt_frame(g, stats.frame, settings.cgSampleOutputPath);
+    stats.frame++;
+}
+
 void print_final_summary(const geometry &g, double energy, unsigned long sweep, time_t start_time, const SimulationRunStats &stats, const char *stop_label)
 {
     int seconds = elapsed_seconds(start_time);
@@ -192,6 +214,9 @@ SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &con
     SimulationLoopSettings settings;
     settings.maxSweeps = config.runtime.maxSweeps;
     settings.final_equilibration_steps = 10 * settings.freq_log;
+    settings.cgSampleStartSweep = config.cgParamOpt.sampleStartSweep;
+    settings.cgSampleEvery = config.cgParamOpt.sampleEvery;
+    settings.cgSampleOutputPath = config.cgParamOpt.sampleOutputPath;
     if (config.initialization.mode != "restart")
     {
         settings.initial_equilibration_steps = 0;
@@ -223,6 +248,23 @@ void initialize_from_restart(geometry &g, gsl_rng *rng, const char *filename, un
     {
         dump_restart_lammps_data_file(g, sweep);
     }
+}
+
+void initialize_from_initial_frame_compat(geometry &g, const char *filename, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings)
+{
+    (void)stats;
+    (void)settings;
+    sweep = 0;
+
+    read_initial_frame_compat_data(g, const_cast<char *>(filename));
+    g.update_boundary();
+    g.update_neigh();
+    g.update_normals();
+
+    double energy = g.compute_energy();
+    print_energy_state(g, energy, 0, "after initial-frame import");
+    fprintf(stderr, "Graph initialized.\n");
+    dump_restart_lammps_data_file(g, sweep);
 }
 
 void initialize_from_seed(geometry &g, gsl_rng *rng, const char *seed_config, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings)
@@ -265,6 +307,7 @@ SimulationStopReason run_relaxation_loop(geometry &g, gsl_rng *rng, FILE *ofile,
 
         move_vertex(g, rng);
         g.update_boundary();
+        maybe_write_cg_paramopt_sample(g, sweep, stats, settings);
 
         double energy = 0.0;
         if (sweep % settings.freq_log == 0)

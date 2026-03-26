@@ -84,6 +84,193 @@ void require_index_capacity(const geometry &g, int id, const char *kind)
 		fail_index_capacity(id, g.index_capacity, kind);
 	}
 }
+void reconstruct_lammps_half_edge_topology(geometry &g)
+{
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		g.update_half_edge(it->id);
+	}
+
+	int Nt = 0;
+	vector<HE>::iterator it = g.he.begin();
+	if (!(it->nextid != -1 && it->previd != -1))
+	{
+		vector<HE>::iterator nextit = g.he.begin();
+		while (true)
+		{
+			if (nextit == g.he.end())
+			{
+				break;
+			}
+			if (!(nextit->nextid != -1 && nextit->previd != -1))
+			{
+				vector<HE>::iterator previt = g.he.begin();
+				while (true)
+				{
+					if (previt == g.he.end())
+					{
+						break;
+					}
+					if (!(previt->nextid != -1 && previt->previd != -1))
+					{
+						if (it->vout == nextit->vin && nextit->vout == previt->vin && previt->vout == it->vin)
+						{
+							g.set_prev_next(it->id, previt->id, nextit->id);
+							g.set_prev_next(previt->id, nextit->id, it->id);
+							g.set_prev_next(nextit->id, it->id, previt->id);
+							Nt++;
+							++previt;
+							++it;
+							++nextit;
+						}
+					}
+
+					++previt;
+				}
+			}
+			++nextit;
+		}
+	}
+
+	while (true)
+	{
+		if (it == g.he.end())
+		{
+			it = g.he.begin();
+		}
+		if (Nt == 80)
+		{
+			break;
+		}
+		int opindex = g.heidtoindex[it->opid];
+		if ((it->nextid == -1 && it->previd == -1) && (g.he[opindex].nextid != -1 && g.he[opindex].previd != -1))
+		{
+			vector<HE>::iterator nextit = g.he.begin();
+			while (true)
+			{
+				if (nextit == g.he.end())
+				{
+					break;
+				}
+				if (nextit->nextid == -1 && nextit->previd == -1)
+				{
+					vector<HE>::iterator previt = g.he.begin();
+					while (true)
+					{
+						if (previt == g.he.end())
+						{
+							break;
+						}
+						if (previt->nextid == -1 && previt->previd == -1)
+						{
+							if (it->vout == nextit->vin && nextit->vout == previt->vin && previt->vout == it->vin)
+							{
+								if (it->vin != nextit->vout && nextit->vin != previt->vout && previt->vin != it->vout)
+								{
+									g.set_prev_next(it->id, previt->id, nextit->id);
+									g.set_prev_next(previt->id, nextit->id, it->id);
+									g.set_prev_next(nextit->id, it->id, previt->id);
+									Nt++;
+								}
+							}
+						}
+
+						++previt;
+					}
+				}
+				++nextit;
+			}
+		}
+		++it;
+	}
+}
+
+void assign_initial_frame_compat_types(geometry &g)
+{
+	g.update_boundary();
+
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		int heindex0 = g.heidtoindex[it->id];
+		int inv = g.v[g.vidtoindex[it->vin]].hein.size();
+		int outv = g.v[g.vidtoindex[it->vout]].hein.size();
+		if (inv == 5 && outv == 6)
+		{
+			g.he[heindex0].type = 2;
+		}
+	}
+
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		int heindex0 = g.heidtoindex[it->id];
+		int nextindex0 = g.heidtoindex[it->nextid];
+		int previndex0 = g.heidtoindex[it->previd];
+		if ((g.he[heindex0].type == 0) && (g.he[nextindex0].type == 0) && (g.he[previndex0].type == 0))
+		{
+			g.he[heindex0].type = 3;
+			g.he[nextindex0].type = 3;
+			g.he[previndex0].type = 3;
+		}
+	}
+
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		int heindex0 = g.heidtoindex[it->id];
+		int nextindex0 = g.heidtoindex[it->nextid];
+		int previndex0 = g.heidtoindex[it->previd];
+		if (g.he[heindex0].type == 0 && (g.he[nextindex0].type != 1 || g.he[previndex0].type != 2))
+		{
+			cout << " wrong types" << endl;
+			exit(-1);
+		}
+		if (g.he[heindex0].type == 1 && (g.he[nextindex0].type != 2 || g.he[previndex0].type != 0))
+		{
+			cout << " wrong types" << endl;
+			exit(-1);
+		}
+		if (g.he[heindex0].type == 2 && (g.he[nextindex0].type != 0 || g.he[previndex0].type != 1))
+		{
+			cout << " wrong types" << endl;
+			exit(-1);
+		}
+		if (g.he[heindex0].type == 3 && (g.he[nextindex0].type != 3 || g.he[previndex0].type != 3))
+		{
+			cout << " wrong types" << endl;
+			exit(-1);
+		}
+	}
+
+	g.update_boundary();
+}
+
+int phi_class_for_cg_paramopt(const geometry &g, const HE &edge)
+{
+	int nextindex = g.heidtoindex[edge.nextid];
+	if (nextindex < 0)
+	{
+		return -1;
+	}
+
+	int nexttype = g.he[nextindex].type;
+	int etype = edge.type;
+	if (etype == 3 && nexttype == 3)
+	{
+		return 0;
+	}
+	if (etype == 1 && nexttype == 2)
+	{
+		return 1;
+	}
+	if (etype == 0 && nexttype == 1)
+	{
+		return 2;
+	}
+	if (etype == 2 && nexttype == 0)
+	{
+		return 3;
+	}
+	return -1;
+}
 }
 
 void set_output_directory(const std::string &path)
@@ -5026,134 +5213,71 @@ void read_lammps_data(geometry &g, char filename[])
 	//int nextid0=-1;
 	cout << "unused x" << x << endl;
 
-	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	reconstruct_lammps_half_edge_topology(g);
+	fclose(file);
+	//exit(-1);
+}
+
+void read_initial_frame_compat_data(geometry &g, char filename[])
+{
+	int fNv = 42;
+	int fNhe = 240;
+	char s[100];
+	char index[20], vtype[20], temp1[20], temp2[20], temp0[20];
+	char TT[] = "Bonds";
+	char AA[] = "Atoms";
+
+	FILE *file = fopen(filename, "r");
+	if (file == nullptr)
 	{
-		g.update_half_edge(it->id);
+		cout << "failed to open legacy lammps file " << filename << endl;
+		exit(-1);
 	}
-	//SEt prevoius next
-	int Nt = 0;
-	vector<HE>::iterator it = g.he.begin();
-	//if (it==g.he.end()) { break;}
-	if (!(it->nextid != -1 && it->previd != -1))
+
+	while (fscanf(file, "%s", s) == 1)
 	{
-		vector<HE>::iterator nextit = g.he.begin();
-		while (true)
-		{
-			//cout << (nextit->id)<<endl;
-			if (nextit == g.he.end())
-			{
-				break;
-			}
-			if (!(nextit->nextid != -1 && nextit->previd != -1))
-			{
-				vector<HE>::iterator previt = g.he.begin();
-				while (true)
-				{
-					//cout << (previt->id)<<endl;
-					if (previt == g.he.end())
-					{
-						break;
-					}
-					if (!(previt->nextid != -1 && previt->previd != -1))
-					{
-						if (it->vout == nextit->vin && nextit->vout == previt->vin && previt->vout == it->vin)
-						{
-							g.set_prev_next(it->id, previt->id, nextit->id);
-							g.set_prev_next(previt->id, nextit->id, it->id);
-							g.set_prev_next(nextit->id, it->id, previt->id);
-							//cout << "set prev_next " << it->id << " "<< previt->id<< " " <<nextit->id<<endl;
-							Nt++;
-							//++it;
-							//break;
-							//cout << "Nt is" << Nt <<endl;
-							//cout << "set prev_next " << it->id << " "<< previt->id<< " " <<nextit->id<<endl;
-							//cout << "set prev_next " <<  previt->id<< " " <<nextit->id<<" "<< it->id <<endl;
-							//cout << "set prev_next " <<  nextit->id<<" "<< it->id <<" "<< previt->id<<endl;
-
-							++previt;
-							++it;
-							++nextit;
-						}
-					}
-
-					++previt;
-				}
-			}
-			++nextit;
-		}
-	}
-	// it is done in two steps to avoid double counting triangles
-	while (true)
-	{
-
-		//cout << (it->id)<<endl;
-		if (it == g.he.end())
-		{
-			it = g.he.begin();
-		}
-		if (Nt == 80)
+		if (strcmp(s, AA) == 0)
 		{
 			break;
 		}
-		//else { cout<< " running Nt is " << Nt<<endl;}
-		int opindex = g.heidtoindex[it->opid];
-		if ((it->nextid == -1 && it->previd == -1) && (g.he[opindex].nextid != -1 && g.he[opindex].previd != -1))
-		{
-			vector<HE>::iterator nextit = g.he.begin();
-			while (true)
-			{
-				//cout << (nextit->id)<<endl;
-				if (nextit == g.he.end())
-				{
-					break;
-				}
-				if (nextit->nextid == -1 && nextit->previd == -1)
-				{
-					vector<HE>::iterator previt = g.he.begin();
-					while (true)
-					{
-						//cout << (previt->id)<<endl;
-						if (previt == g.he.end())
-						{
-							break;
-						}
-						if (previt->nextid == -1 && previt->previd == -1)
-						{
-							if (it->vout == nextit->vin && nextit->vout == previt->vin && previt->vout == it->vin)
-							{
-								if (it->vin != nextit->vout && nextit->vin != previt->vout && previt->vin != it->vout)
-								{
-									g.set_prev_next(it->id, previt->id, nextit->id);
-									g.set_prev_next(previt->id, nextit->id, it->id);
-									g.set_prev_next(nextit->id, it->id, previt->id);
-									//cout << "Nt is" << Nt <<endl;
-									//cout << "set prev_next " << it->id << " "<< previt->id<< " " <<nextit->id<<endl;
-									//cout << "set prev_next " <<  previt->id<< " " <<nextit->id<<" "<< it->id <<endl;
-									//cout << "set prev_next " <<  nextit->id<<" "<< it->id <<" "<< previt->id<<endl;
-									Nt++;
-									//++it;
-								}
-							}
-						}
+	}
 
-						++previt;
-					}
-				}
-				++nextit;
-			}
+	double *tvec = new double[3];
+	double *vec = new double[3];
+	for (int i = 0; i < fNv; i++)
+	{
+		int x = fscanf(file, "%s %s %s %s %s\n", index, vtype, temp0, temp1, temp2);
+		(void)x;
+		tvec[0] = atof(temp0);
+		tvec[1] = atof(temp1);
+		tvec[2] = atof(temp2);
+		double normvec = norm(tvec);
+		multvec(tvec, 1.6 / normvec, vec);
+		g.add_vertex(vec);
+	}
+	delete[] vec;
+	delete[] tvec;
+
+	while (fscanf(file, "%s", s) == 1)
+	{
+		if (strcmp(s, TT) == 0)
+		{
+			break;
 		}
-		++it;
 	}
-	/*for (vector<HE>::iterator it = g.he.begin() ; it != g.he.end(); it++) {
-		cout << "EDGE  " <<distance(g.he.begin(),it) <<" id " << it->id << " vin " << g.vidtoindex[it->vin] << "vout " << g.vidtoindex[it->vout] <<endl;
-		cout << "      opid " << it->opid << " nextid " << it->nextid << " previd " << it->previd <<endl;
-		cout << "      hevec " << it->hevec[0] << " " << it->hevec[1]  << " "  << it->hevec[2] <<" l is " << it->l << endl;
-		//cout << "      normal " << it->n[0] << " " << it->n[1] << " " << it->n[2] << " " <<endl <<endl;
+	for (int i = 0; i < fNhe; i++)
+	{
+		int x = fscanf(file, "%s %s %s %s\n", index, temp0, temp1, temp2);
+		(void)x;
+		g.add_half_edge_type(atoi(temp1) - 1, atoi(temp2) - 1, atoi(temp0) - 1, -1);
 	}
-	cout << "Nt " << Nt <<endl;;*/
-	//fprintf(stderr," edges : %d\n",g.Nhe);
+
+	reconstruct_lammps_half_edge_topology(g);
 	fclose(file);
-	//exit(-1);
+
+	assign_initial_frame_compat_types(g);
+	g.update_neigh();
+	g.update_normals();
 }
 
 /* this fuction should be updated with boundary index */
@@ -5631,6 +5755,85 @@ void dump_data_frame(geometry &g, FILE *f, int time)
 	}
 	fprintf(stderr, " L0 %.d L1 %.d Theta0 %.d Theta1 %.d Phi00 %.d Phi11 %.d Phi01 %.d \n", L0, L1, Theta0, Theta1, Phi00, Phi11, Phi01);
 	fprintf(stderr, " L0 %.3f L1 %.3f Theta0 %.3f Theta1 %.3f Phi00 %.3f Phi11 %.3f Phi01 %.3f \n", avgL0 / L0, avgL1 / L1, avgTheta0 / Theta0, avgTheta1 / Theta1, avgPhi00 / Phi00, avgPhi11 / Phi11, avgPhi01 / Phi01);
+}
+
+void dump_cg_paramopt_frame(geometry &g, int frame_index, const std::string &filename)
+{
+	std::vector<double> params[8];
+	const std::string path = (!filename.empty() && filename[0] == '/') ? filename : output_file_path(filename);
+	FILE *f = fopen(path.c_str(), frame_index == 0 ? "w" : "a");
+	if (f == nullptr)
+	{
+		cout << "failed to open cg paramopt output " << path << endl;
+		exit(-1);
+	}
+
+	if (frame_index == 0)
+	{
+		fprintf(f, "L0,L1,Theta0,Theta1,Phi33,Phi01,Phi12,Phi20\n");
+	}
+
+	for (vector<HE>::iterator it = g.he.begin(); it != g.he.end(); ++it)
+	{
+		double ndot = dot(it->n, g.he[g.heidtoindex[it->opid]].n);
+		if (ndot < -1)
+		{
+			ndot = -1;
+		}
+		if (ndot > 1)
+		{
+			ndot = 1;
+		}
+		double theta = acos(ndot);
+
+		int nextindex = g.heidtoindex[it->nextid];
+		int opindex = g.heidtoindex[it->opid];
+		ndot = dot(g.he[opindex].hevec, g.he[nextindex].hevec) / (g.he[opindex].l * g.he[nextindex].l);
+		if (ndot < -1)
+		{
+			ndot = -1;
+		}
+		if (ndot > 1)
+		{
+			ndot = 1;
+		}
+		double phi = acos(ndot);
+		int phitype = phi_class_for_cg_paramopt(g, *it);
+
+		if (it->type == 0 || it->type == 3)
+		{
+			params[0].push_back(it->l);
+			params[2].push_back(theta);
+		}
+		else if (it->type == 1 || it->type == 2)
+		{
+			params[1].push_back(it->l);
+			params[3].push_back(theta);
+		}
+
+		if (phitype >= 0)
+		{
+			params[4 + phitype].push_back(phi);
+		}
+	}
+
+	std::size_t row_count = params[0].size();
+	for (int i = 1; i < 8; ++i)
+	{
+		if (params[i].size() < row_count)
+		{
+			row_count = params[i].size();
+		}
+	}
+
+	for (std::size_t i = 0; i < row_count; ++i)
+	{
+		fprintf(f, "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f\n",
+				params[0][i], params[1][i], params[2][i], params[3][i],
+				params[4][i], params[5][i], params[6][i], params[7][i]);
+	}
+
+	fclose(f);
 }
 
 void dump_analysis(geometry &g, FILE *ofile, int sweep = -1, int seed = -1, int seconds = -1)

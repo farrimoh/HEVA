@@ -12,15 +12,15 @@ void apply_simulation_config(const SimulationConfig &config, geometry &g)
     g.xi = .5;
     g.Nd = 0;
 
-    g.l0[0] = 1.05;
-    g.l0[1] = .95;
+    g.l0[0] = config.capsidGeometry.l0;
+    g.l0[1] = config.capsidGeometry.l1;
     g.l0[2] = .95;
     g.l0[3] = 1.05;
 
-    g.phi0[0] = 1.05;
-    g.phi0[1] = 1.17;
-    g.phi0[2] = .98;
-    g.phi0[3] = 1.05;
+    g.phi0[0] = config.capsidGeometry.phi33;
+    g.phi0[1] = config.capsidGeometry.phi12;
+    g.phi0[2] = config.capsidGeometry.phi01;
+    g.phi0[3] = config.capsidGeometry.phi20;
 
     g.epsilon[0] = config.capsidGeometry.epsilon0;
     g.epsilon[1] = g.epsilon[0];
@@ -39,8 +39,8 @@ void apply_simulation_config(const SimulationConfig &config, geometry &g)
 
     g.theta0[0] = config.capsidGeometry.theta0;
     g.theta0[1] = config.capsidGeometry.theta1;
-    g.theta0[2] = g.theta0[0];
-    g.theta0[3] = g.theta0[0];
+    g.theta0[2] = config.capsidGeometry.theta2;
+    g.theta0[3] = config.capsidGeometry.theta3;
 
     g.gb0 = config.capsidGeometry.gb0;
     g.mu[0] = config.simulation.muCd;

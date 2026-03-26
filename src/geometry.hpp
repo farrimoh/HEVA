@@ -381,6 +381,7 @@ void move_vertex(geometry &g, gsl_rng *r);
 void rotatevec(double *vec, double *axis, double angle, double *vec2);
 
 void read_lammps_data(geometry &g, char filename[]);
+void read_initial_frame_compat_data(geometry &g, char filename[]);
 
 int read_restart_lammps_data_file(geometry &g, char filename[]);
 
@@ -402,6 +403,7 @@ void make_initial_pentamer(geometry &g);
 void make_initial_hexamer(geometry &g);
 
 void dump_analysis(geometry &g, FILE *ofile, int sweep, int seed, int seconds);
+void dump_cg_paramopt_frame(geometry &g, int frame_index, const std::string &filename);
 void set_output_directory(const std::string &path);
 std::string output_file_path(const std::string &filename);
 
