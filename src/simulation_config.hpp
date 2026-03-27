@@ -46,7 +46,7 @@ struct InitializationConfig
 {
     std::string mode;
     std::string seedConfig;
-    std::string restartPath;
+    std::string path;
 };
 
 struct RuntimeConfig
@@ -55,6 +55,7 @@ struct RuntimeConfig
     unsigned long maxSweeps;
     std::string outputDir;
     std::string workflow;
+    bool resume;
 };
 
 struct EngineConfig

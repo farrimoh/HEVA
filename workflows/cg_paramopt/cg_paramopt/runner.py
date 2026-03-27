@@ -43,9 +43,10 @@ def build_trial_spec(config: RuntimeConfig, seed: int, params: list[float], geom
     return TrialSpec(
         workflow_dir=config.base_dir,
         assemble_path=config.resolve_assemble_path(),
+        prepare_initial_frame_path=config.resolve_prepare_initial_frame_path(),
         base_config_path=config.resolve_base_config_path(),
         initial_structure_path=config.resolve_initial_structure_path(),
-        init_mode=config.init_mode,
+        input_format=config.input_format,
         epsilon0=params[0],
         kappa0=params[1],
         kappaPhi0=params[2],
@@ -64,6 +65,7 @@ def build_trial_spec(config: RuntimeConfig, seed: int, params: list[float], geom
         frames=config.frames,
         sample_every=config.sample_every,
         profile=config.profile,
+        resume=False,
         index_capacity=config.index_capacity,
         output_dir=trial_dir,
     )
@@ -109,4 +111,3 @@ def run_single_simulation(
     append_trial_record(run_dir, params, error, "OK", execution.run_dir)
     logging.info("Simulation error: %.3f", error)
     return SimulationResult(error, execution.stdout, command, execution.generated_config_path, execution.run_dir)
-

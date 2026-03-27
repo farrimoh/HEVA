@@ -133,9 +133,10 @@ void set_default_config(SimulationConfig &config)
     config.runtime.maxSweeps = 0UL;
     config.runtime.outputDir = ".";
     config.runtime.workflow = "assembly";
+    config.runtime.resume = true;
     config.initialization.mode = "restart";
     config.initialization.seedConfig = "triangle";
-    config.initialization.restartPath = "restart_lammps.dat";
+    config.initialization.path = "restart_lammps.dat";
     config.capsidGeometry.theta2 = 0.0;
     config.capsidGeometry.theta3 = 0.0;
     config.capsidGeometry.l0 = 1.05;
@@ -156,7 +157,22 @@ bool is_valid_seed_config(const std::string &value)
 
 bool is_valid_init_mode(const std::string &value)
 {
-    return value == "restart" || value == "seed" || value == "legacy_lammps" || value == "initial_frame";
+    return value == "restart" || value == "seed";
+}
+
+bool parse_bool_string(const std::string &text, bool &value)
+{
+    if (text == "true" || text == "1" || text == "yes" || text == "on")
+    {
+        value = true;
+        return true;
+    }
+    if (text == "false" || text == "0" || text == "no" || text == "off")
+    {
+        value = false;
+        return true;
+    }
+    return false;
 }
 
 bool is_valid_run_mode(const std::string &value)
@@ -191,6 +207,29 @@ bool finalize_runtime_workflow(SimulationConfig &config, std::string &error_mess
     {
         error_message = "Relaxation workflow requires runtime.maxSweeps (or --max-sweeps) to be greater than zero.\n" + assemble_usage();
         return false;
+    }
+
+    return true;
+}
+
+bool finalize_initialization_config(SimulationConfig &config, std::string &error_message)
+{
+    if (!is_valid_init_mode(config.initialization.mode))
+    {
+        error_message = "Invalid value for init.mode. Expected restart or seed.\n" + assemble_usage();
+        return false;
+    }
+
+    if (config.initialization.mode == "seed")
+    {
+        config.runtime.resume = false;
+        config.initialization.path.clear();
+        return true;
+    }
+
+    if (config.initialization.path.empty())
+    {
+        config.initialization.path = "restart_lammps.dat";
     }
 
     return true;
@@ -320,14 +359,14 @@ bool apply_optional_argument(const std::string &option, const std::string &value
         return true;
     }
 
-    if (option == "--restart")
+    if (option == "--restart" || option == "--init-path")
     {
         if (value.empty())
         {
-            error_message = "Invalid value for --restart.\n" + assemble_usage();
+            error_message = std::string("Invalid value for ") + option + ".\n" + assemble_usage();
             return false;
         }
-        config.initialization.restartPath = value;
+        config.initialization.path = value;
         return true;
     }
 
@@ -344,8 +383,18 @@ bool apply_optional_argument(const std::string &option, const std::string &value
             config.initialization.seedConfig = value;
             return true;
         }
-        error_message = "Invalid value for --init. Expected restart, seed, initial_frame, legacy_lammps, triangle, pentamer, or hexamer.\n" + assemble_usage();
+        error_message = "Invalid value for --init. Expected restart, seed, triangle, pentamer, or hexamer.\n" + assemble_usage();
         return false;
+    }
+
+    if (option == "--resume")
+    {
+        if (!parse_bool_string(value, config.runtime.resume))
+        {
+            error_message = "Invalid value for --resume. Expected true or false.\n" + assemble_usage();
+            return false;
+        }
+        return true;
     }
 
     if (option == "--seed-config")
@@ -621,9 +670,9 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
                 continue;
             }
 
-            if (key == "restartPath")
+            if (key == "path" || key == "restartPath")
             {
-                config.initialization.restartPath = resolve_relative_to(config_dir, value);
+                config.initialization.path = resolve_relative_to(config_dir, value);
                 continue;
             }
 
@@ -703,6 +752,16 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
                 continue;
             }
 
+            if (key == "resume")
+            {
+                if (!parse_bool_string(value, config.runtime.resume))
+                {
+                    error_message = "Invalid value for runtime.resume.";
+                    return false;
+                }
+                continue;
+            }
+
             error_message = std::string("Unknown config key in [runtime]: ") + key;
             return false;
         }
@@ -762,9 +821,9 @@ std::string assemble_usage()
 {
     std::ostringstream usage;
     usage << "usage: ./assemble --config PATH "
-          << "[--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--workflow MODE] [--init MODE] [--seed-config NAME] [--restart PATH] [--output-dir PATH]\n"
+          << "[--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--workflow MODE] [--init MODE] [--seed-config NAME] [--init-path PATH] [--resume true|false] [--output-dir PATH]\n"
           << "config sections: [capsid_geometry], [simulation], [drug], [init], [runtime], [engine], [cg_paramopt]\n"
-          << "init modes: restart, seed, initial_frame (preferred), legacy_lammps (alias)\n"
+          << "init modes: restart, seed\n"
           << "runtime workflows: assembly (default), relaxation (move_vertex only)\n"
           << "engine profiles: test=" << kTestIndexCapacity
           << ", run=" << kRunIndexCapacity
@@ -814,13 +873,18 @@ std::string render_simulation_config(const SimulationConfig &config)
     output << "[init]\n";
     output << "mode = " << config.initialization.mode << "\n";
     output << "seedShape = " << config.initialization.seedConfig << "\n";
-    output << "restartPath = " << config.initialization.restartPath << "\n\n";
+    if (!config.initialization.path.empty())
+    {
+        output << "path = " << config.initialization.path << "\n";
+    }
+    output << "\n";
 
     output << "[runtime]\n";
     output << "seed = " << config.runtime.seed << "\n";
     output << "maxSweeps = " << config.runtime.maxSweeps << "\n";
     output << "outputDir = " << config.runtime.outputDir << "\n";
-    output << "workflow = " << config.runtime.workflow << "\n\n";
+    output << "workflow = " << config.runtime.workflow << "\n";
+    output << "resume = " << (config.runtime.resume ? "true" : "false") << "\n\n";
 
     output << "[engine]\n";
     output << "profile = " << config.engine.runMode << "\n";
@@ -867,6 +931,11 @@ bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, st
     }
 
     if (!finalize_run_mode(config, error_message))
+    {
+        return false;
+    }
+
+    if (!finalize_initialization_config(config, error_message))
     {
         return false;
     }

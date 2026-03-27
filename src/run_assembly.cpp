@@ -136,13 +136,13 @@ SimulationConfig make_persisted_run_config(const SimulationConfig &config, const
 {
     SimulationConfig persisted = config;
     persisted.runtime.outputDir = ".";
-    if (persisted.initialization.mode == "restart" || persisted.initialization.mode == "legacy_lammps" || persisted.initialization.mode == "initial_frame")
+    if (persisted.initialization.mode == "restart")
     {
-        persisted.initialization.restartPath = relative_to_output_dir_or_absolute(output_dir, restart_path);
+        persisted.initialization.path = relative_to_output_dir_or_absolute(output_dir, restart_path);
     }
     else
     {
-        persisted.initialization.restartPath = "restart_lammps.dat";
+        persisted.initialization.path.clear();
     }
     return persisted;
 }
@@ -177,12 +177,12 @@ int main(int argc, char **argv)
     }
 
     const std::string launch_dir = cwd_buffer;
-    const std::string restart_path = resolve_path_from(launch_dir, config.initialization.restartPath);
+    const std::string init_path = config.initialization.path.empty() ? std::string() : resolve_path_from(launch_dir, config.initialization.path);
     const std::string output_dir = resolve_path_from(launch_dir, config.runtime.outputDir);
 
-    if ((config.initialization.mode == "restart" || config.initialization.mode == "legacy_lammps" || config.initialization.mode == "initial_frame") && access(restart_path.c_str(), R_OK) != 0)
+    if (config.initialization.mode == "restart" && access(init_path.c_str(), R_OK) != 0)
     {
-        std::cerr << "Initialization file is not readable: " << restart_path << std::endl;
+        std::cerr << "Initialization file is not readable: " << init_path << std::endl;
         return -1;
     }
 
@@ -213,9 +213,9 @@ int main(int argc, char **argv)
     const std::string energy_path = join_paths(output_dir, "energy.dat");
     const std::string run_config_path = join_paths(output_dir, "run_config.out");
     const std::string parameters_path = join_paths(output_dir, "parameters_run.out");
-    const SimulationConfig persisted_config = make_persisted_run_config(config, restart_path, output_dir);
+    const SimulationConfig persisted_config = make_persisted_run_config(config, init_path, output_dir);
     g.dump_parameters();
-    ofile = fopen(energy_path.c_str(), "a");
+    ofile = fopen(energy_path.c_str(), config.runtime.resume ? "a" : "w");
     fprintf(stderr, " log files exist\n");
     cout << " file openned" << endl;
 
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
     fprintf(fi, "%s", rendered_config.c_str());
     fclose(fi);
 
-    fi = fopen(parameters_path.c_str(), "a");
+    fi = fopen(parameters_path.c_str(), config.runtime.resume ? "a" : "w");
     fprintf(fi, "%s\n", assemble_usage().c_str());
     write_invocation(fi, persisted_config, 0UL);
 
@@ -273,11 +273,7 @@ int main(int argc, char **argv)
     SimulationLoopSettings settings = make_simulation_loop_settings(config);
     if (config.initialization.mode == "restart")
     {
-        initialize_from_restart(g, rng, restart_path.c_str(), sweep, stats, settings);
-    }
-    else if (config.initialization.mode == "legacy_lammps" || config.initialization.mode == "initial_frame")
-    {
-        initialize_from_initial_frame_compat(g, restart_path.c_str(), sweep, stats, settings);
+        initialize_from_restart(g, rng, init_path.c_str(), sweep, stats, settings);
     }
     else
     {

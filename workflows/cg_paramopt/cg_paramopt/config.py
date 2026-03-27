@@ -17,13 +17,14 @@ class RuntimeConfig:
     runs_dir: Path
     base_config_path: Path
     assemble_path: Path
+    prepare_initial_frame_path: Path
     initial_structure_path: Path
     aa_data_path: Path
     max_evals: int
     frames: int
     relax_sweeps: int
     sample_every: int
-    init_mode: str
+    input_format: str
     profile: str
     index_capacity: int | None
     penalty_error: float = 1e9
@@ -43,6 +44,11 @@ class RuntimeConfig:
             return self.assemble_path
         return (self.base_dir / self.assemble_path).resolve()
 
+    def resolve_prepare_initial_frame_path(self) -> Path:
+        if self.prepare_initial_frame_path.is_absolute():
+            return self.prepare_initial_frame_path
+        return (self.base_dir / self.prepare_initial_frame_path).resolve()
+
     def resolve_initial_structure_path(self) -> Path:
         if self.initial_structure_path.is_absolute():
             return self.initial_structure_path
@@ -60,13 +66,14 @@ def build_config(
     runs_dir: str | None = None,
     base_config: str | None = None,
     assemble: str | None = None,
+    prepare_initial_frame: str | None = None,
     initial_structure: str | None = None,
     aa_data: str | None = None,
     max_evals: int = 10,
     frames: int = 5000,
     relax_sweeps: int = 50000,
     sample_every: int = 1,
-    init_mode: str = "initial_frame",
+    input_format: str = "initial_frame",
     profile: str = "test",
     index_capacity: int | None = None,
 ) -> RuntimeConfig:
@@ -75,13 +82,14 @@ def build_config(
         runs_dir=Path(runs_dir) if runs_dir else Path("./runs"),
         base_config_path=Path(base_config) if base_config else Path("./config/base_config.in"),
         assemble_path=Path(assemble) if assemble else Path("../../src/assemble"),
+        prepare_initial_frame_path=Path(prepare_initial_frame) if prepare_initial_frame else Path("../../src/prepare_initial_frame"),
         initial_structure_path=Path(initial_structure) if initial_structure else Path("./data/Initial_frame.dat"),
         aa_data_path=Path(aa_data) if aa_data else Path("./data/AAdata.csv"),
         max_evals=max_evals,
         frames=frames,
         relax_sweeps=relax_sweeps,
         sample_every=sample_every,
-        init_mode=init_mode,
+        input_format=input_format,
         profile=profile,
         index_capacity=index_capacity,
     )

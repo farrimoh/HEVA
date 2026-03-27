@@ -42,23 +42,24 @@ cd src
 The `[init]` section controls how a run starts.
 
 - `mode = restart`
-  Start from `restartPath`
+  Start from `path` or from the default `restart_lammps.dat`
 
 - `mode = seed`
   Use `seedShape = triangle | pentamer | hexamer`
-
-- `mode = initial_frame`
-  Import a CG-ParamOpt-style `Initial_frame.dat` through the compatibility reader
-
-- `mode = legacy_lammps`
-  Backward-compatible alias for `initial_frame`
 
 - `mode = triangle | pentamer | hexamer`
   Shorthand for deterministic seed initialization with that shape
 
 `pentamer` and `hexamer` currently use deterministic startup paths.
 
-`initial_frame` is useful when you want HEVA to relax and sample a prebuilt structure rather than grow one through the assembly workflow.
+## Resume Behavior
+The `[runtime]` section also controls whether a restart-source is treated as a fresh start or a continuation.
+
+- `resume = false`
+  Load the structure from `init.path`, reset sweep/output state, and start a new run
+
+- `resume = true`
+  Continue from the sweep/output context stored in the restart file
 
 ## Runtime Workflows
 The `[runtime]` section also controls which Monte Carlo loop HEVA uses.
@@ -81,12 +82,38 @@ Typical usage from the repository root:
 ```bash
 python3 workflows/cg_paramopt/scripts/run_trial.py \
   --initial-structure /path/to/Initial_frame.dat \
+  --input-format initial_frame \
   --epsilon0 4200 \
   --kappa0 40 \
   --kappaPhi0 800
 ```
 
-That workflow generates a sectioned HEVA config, runs `workflow = relaxation`, and writes legacy-style sampled geometry into `data.dat` for downstream optimization.
+That workflow first converts the AA-translated initial frame into a standard HEVA `restart_lammps.dat`, then runs `workflow = relaxation` with `init.mode = restart` and `runtime.resume = false`. The sampled geometry is written into `data.dat` for downstream optimization.
+
+## Validated Examples
+The following concrete commands were exercised during the init/resume cleanup pass.
+
+Seeded assembly starts:
+
+```bash
+cd /mnt/d/Coding/HEVA/HEVA/src
+./assemble --config /tmp/heva-seed-triangle.in
+./assemble --config /tmp/heva-seed-pentamer.in
+```
+
+Restart-source fresh start versus continuation:
+
+```bash
+cd /mnt/d/Coding/HEVA/HEVA/src
+./assemble --config /tmp/heva-restart-fresh-from-seed.in
+./assemble --config /tmp/heva-restart-resume-from-seed.in
+```
+
+These scenarios verified:
+
+- `mode = seed` and shorthand seed modes still start normal HEVA runs
+- `mode = restart` with `resume = false` resets sweep/output state and starts fresh
+- `mode = restart` with `resume = true` continues from the stored sweep state
 
 ## Useful Overrides
 Config files are the main interface, but a few run controls can still be overridden on the command line:
@@ -95,8 +122,9 @@ Config files are the main interface, but a few run controls can still be overrid
 - `--run-mode`
 - `--index-capacity`
 - `--init`
+- `--init-path`
 - `--seed-config`
-- `--restart`
+- `--resume`
 - `--output-dir`
 
 Example:

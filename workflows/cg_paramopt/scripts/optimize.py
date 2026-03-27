@@ -33,9 +33,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--runs-dir", default=None, help="Output directory for optimization runs.")
     parser.add_argument("--base-config", default=None, help="Override the workflow base config.")
     parser.add_argument("--assemble", default=None, help="Override the HEVA assemble binary path.")
-    parser.add_argument("--initial-structure", default=None, help="Path to Initial_frame.dat or restart_lammps.dat.")
+    parser.add_argument("--prepare-initial-frame", default=None, help="Override the HEVA initial-frame preparation binary path.")
+    parser.add_argument("--initial-structure", default=None, help="Path to an AA-translated Initial_frame.dat input or a HEVA restart file.")
     parser.add_argument("--aa-data", default=None, help="Path to AAdata.csv.")
-    parser.add_argument("--init-mode", choices=("initial_frame", "restart", "legacy_lammps"), default="initial_frame", help="How HEVA should read --initial-structure.")
+    parser.add_argument("--input-format", choices=("initial_frame", "restart"), default="initial_frame", help="Interpret --initial-structure as an AA-translated initial frame or a HEVA restart file.")
     parser.add_argument("--profile", choices=("test", "run", "extended"), default="test", help="HEVA engine profile.")
     parser.add_argument("--index-capacity", type=int, default=None, help="Required only for profile=extended.")
     parser.add_argument("--dry-run", action="store_true", help="Generate trial configs without executing HEVA.")
@@ -72,13 +73,14 @@ def main() -> int:
         runs_dir=args.runs_dir,
         base_config=args.base_config,
         assemble=args.assemble,
+        prepare_initial_frame=args.prepare_initial_frame,
         initial_structure=args.initial_structure,
         aa_data=args.aa_data,
         max_evals=args.max_evals,
         frames=args.frames,
         relax_sweeps=args.relax_sweeps,
         sample_every=args.sample_every,
-        init_mode=args.init_mode,
+        input_format=args.input_format,
         profile=args.profile,
         index_capacity=args.index_capacity,
     )

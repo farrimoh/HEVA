@@ -34,6 +34,16 @@ def run_static_verification(config: RuntimeConfig) -> list[VerificationItem]:
         )
     )
 
+    prepare_binary = config.resolve_prepare_initial_frame_path()
+    if config.input_format == "initial_frame":
+        items.append(
+            VerificationItem(
+                "info" if prepare_binary.exists() else "error",
+                "prepare_initial_frame binary",
+                str(prepare_binary),
+            )
+        )
+
     base_config_path = config.resolve_base_config_path()
     if not base_config_path.exists():
         items.append(VerificationItem("error", "base config", f"missing at {base_config_path}"))
@@ -42,9 +52,11 @@ def run_static_verification(config: RuntimeConfig) -> list[VerificationItem]:
     parser = load_config(base_config_path)
     init_mode = parser.get("init", "mode", fallback="")
     workflow = parser.get("runtime", "workflow", fallback="")
+    resume = parser.get("runtime", "resume", fallback="")
     has_cg_section = parser.has_section("cg_paramopt")
-    items.append(VerificationItem("info" if init_mode in {"initial_frame", "legacy_lammps"} else "warning", "base init.mode", init_mode or "missing"))
+    items.append(VerificationItem("info" if init_mode == "restart" else "warning", "base init.mode", init_mode or "missing"))
     items.append(VerificationItem("info" if workflow == "relaxation" else "warning", "base runtime.workflow", workflow or "missing"))
+    items.append(VerificationItem("info" if resume == "false" else "warning", "base runtime.resume", resume or "missing"))
     items.append(VerificationItem("info" if has_cg_section else "warning", "base [cg_paramopt]", "present" if has_cg_section else "missing"))
 
     initial_structure = config.resolve_initial_structure_path()
@@ -66,4 +78,3 @@ def run_static_verification(config: RuntimeConfig) -> list[VerificationItem]:
     )
 
     return items
-

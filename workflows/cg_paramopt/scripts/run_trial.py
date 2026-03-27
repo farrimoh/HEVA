@@ -17,8 +17,8 @@ from cg_paramopt.trial import TrialSpec, execute_trial
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run one HEVA CG-ParamOpt-style trial.")
-    parser.add_argument("--initial-structure", type=Path, required=True, help="Initial-frame compatibility input or HEVA restart_lammps.dat.")
-    parser.add_argument("--init-mode", choices=("initial_frame", "restart", "legacy_lammps"), default="initial_frame", help="How HEVA should read --initial-structure. Use initial_frame for CG-ParamOpt-style imports.")
+    parser.add_argument("--initial-structure", type=Path, required=True, help="AA-translated Initial_frame.dat input or a HEVA restart-style state file.")
+    parser.add_argument("--input-format", choices=("initial_frame", "restart"), default="initial_frame", help="Interpret --initial-structure as an AA-translated initial frame or a HEVA restart file.")
     parser.add_argument("--epsilon0", type=float, required=True, help="Legacy kappa_l analog.")
     parser.add_argument("--kappa0", type=float, required=True, help="Legacy kappa_theta analog.")
     parser.add_argument("--kappaPhi0", type=float, required=True, help="Legacy kappa_phi analog.")
@@ -39,8 +39,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--profile", choices=("test", "run", "extended"), default="test", help="HEVA engine profile.")
     parser.add_argument("--index-capacity", type=int, default=None, help="Required only for profile=extended.")
     parser.add_argument("--assemble", type=Path, default=None, help="Path to the HEVA assemble binary.")
+    parser.add_argument("--prepare-initial-frame", type=Path, default=None, help="Path to the HEVA initial-frame preparation binary.")
     parser.add_argument("--base-config", type=Path, default=None, help="Path to the workflow base config.")
     parser.add_argument("--output-dir", type=Path, default=None, help="Explicit run output directory.")
+    parser.add_argument("--resume", action="store_true", help="Continue from the sweep/output context stored in the restart file.")
     parser.add_argument("--dry-run", action="store_true", help="Write the generated config and print the command without running HEVA.")
     return parser.parse_args()
 
@@ -51,11 +53,16 @@ def main() -> int:
     workflow_dir = WORKFLOW_DIR.resolve()
     repo_root = workflow_dir.parents[1]
     assemble_path = args.assemble.resolve() if args.assemble else (repo_root / "src" / "assemble").resolve()
+    prepare_initial_frame_path = args.prepare_initial_frame.resolve() if args.prepare_initial_frame else (repo_root / "src" / "prepare_initial_frame").resolve()
     base_config_path = args.base_config.resolve() if args.base_config else (workflow_dir / "config" / "base_config.in").resolve()
     initial_structure_path = args.initial_structure.resolve()
 
     if not assemble_path.exists():
         print(f"assemble binary not found: {assemble_path}", file=sys.stderr)
+        print("Build HEVA first with `cd src && make`.", file=sys.stderr)
+        return 1
+    if args.input_format == "initial_frame" and not prepare_initial_frame_path.exists():
+        print(f"prepare_initial_frame binary not found: {prepare_initial_frame_path}", file=sys.stderr)
         print("Build HEVA first with `cd src && make`.", file=sys.stderr)
         return 1
     if not initial_structure_path.exists():
@@ -68,9 +75,10 @@ def main() -> int:
     spec = TrialSpec(
         workflow_dir=workflow_dir,
         assemble_path=assemble_path,
+        prepare_initial_frame_path=prepare_initial_frame_path,
         base_config_path=base_config_path,
         initial_structure_path=initial_structure_path,
-        init_mode=args.init_mode,
+        input_format=args.input_format,
         epsilon0=args.epsilon0,
         kappa0=args.kappa0,
         kappaPhi0=args.kappaPhi0,
@@ -89,6 +97,7 @@ def main() -> int:
         frames=args.frames,
         sample_every=args.sample_every,
         profile=args.profile,
+        resume=args.resume,
         index_capacity=args.index_capacity,
         output_dir=args.output_dir.resolve() if args.output_dir else None,
     )
@@ -96,11 +105,18 @@ def main() -> int:
     execution = execute_trial(spec, dry_run=args.dry_run)
     print(f"Run directory: {execution.run_dir}")
     print(f"Generated config: {execution.generated_config_path}")
+    if execution.prepare_command:
+        print("Preparation command:")
+        print(" ".join(execution.prepare_command))
+        print(f"Prepared restart: {execution.prepared_restart_path}")
     print("Command:")
     print(" ".join(execution.command))
 
     if args.dry_run:
         return 0
+
+    if execution.prepare_stdout:
+        print(execution.prepare_stdout, end="" if execution.prepare_stdout.endswith("\n") else "\n")
 
     if execution.stdout:
         print(execution.stdout, end="" if execution.stdout.endswith("\n") else "\n")
@@ -116,4 +132,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -42,7 +42,7 @@ SimulationLoopSettings::SimulationLoopSettings()
       freq_out(1000),
       initial_equilibration_steps(1000),
       final_equilibration_steps(1000),
-      relaxationSweepsAreRelative(false),
+      resume(true),
       maxSweeps(0UL),
       cgSampleStartSweep(0UL),
       cgSampleEvery(0UL),
@@ -213,13 +213,13 @@ void write_stop_snapshot(geometry &g, FILE *ofile, unsigned long sweep, unsigned
 SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &config)
 {
     SimulationLoopSettings settings;
-    settings.relaxationSweepsAreRelative = (config.runtime.workflow == "relaxation");
+    settings.resume = config.runtime.resume;
     settings.maxSweeps = config.runtime.maxSweeps;
     settings.final_equilibration_steps = 10 * settings.freq_log;
     settings.cgSampleStartSweep = config.cgParamOpt.sampleStartSweep;
     settings.cgSampleEvery = config.cgParamOpt.sampleEvery;
     settings.cgSampleOutputPath = config.cgParamOpt.sampleOutputPath;
-    if (config.initialization.mode != "restart")
+    if (config.initialization.mode != "restart" || !config.runtime.resume)
     {
         settings.initial_equilibration_steps = 0;
     }
@@ -251,27 +251,10 @@ void initialize_from_restart(geometry &g, gsl_rng *rng, const char *filename, un
         dump_restart_lammps_data_file(g, sweep);
     }
 
-    if (settings.relaxationSweepsAreRelative)
+    if (!settings.resume)
     {
         sweep = 0UL;
     }
-}
-
-void initialize_from_initial_frame_compat(geometry &g, const char *filename, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings)
-{
-    (void)stats;
-    (void)settings;
-    sweep = 0;
-
-    read_initial_frame_compat_data(g, const_cast<char *>(filename));
-    g.update_boundary();
-    g.update_neigh();
-    g.update_normals();
-
-    double energy = g.compute_energy();
-    print_energy_state(g, energy, 0, "after initial-frame import");
-    fprintf(stderr, "Graph initialized.\n");
-    dump_restart_lammps_data_file(g, sweep);
 }
 
 void initialize_from_seed(geometry &g, gsl_rng *rng, const char *seed_config, unsigned long &sweep, SimulationRunStats &stats, const SimulationLoopSettings &settings)

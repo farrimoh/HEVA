@@ -52,19 +52,19 @@ Initialization behavior:
 
 - `mode`
 - `seedShape`
-- `restartPath`
+- `path` optional, defaults to `restart_lammps.dat` when `mode = restart`
+
+`restartPath` is still accepted as a backward-compatible alias for `path`.
 
 Supported `mode` values:
 
 - `restart`
 - `seed`
-- `initial_frame`
-- `legacy_lammps` alias for `initial_frame`
 - `triangle`
 - `pentamer`
 - `hexamer`
 
-`initial_frame` is the compatibility path for CG-ParamOpt-style `Initial_frame.dat` inputs. It reads the imported structure, rescales the coordinates the same way as the historical workflow, reconstructs the half-edge topology, and assigns the four edge types before the run begins.
+`triangle`, `pentamer`, and `hexamer` are shorthand for `mode = seed` with the corresponding `seedShape`.
 
 ### `[runtime]`
 Per-run controls:
@@ -73,6 +73,15 @@ Per-run controls:
 - `maxSweeps`
 - `outputDir`
 - `workflow`
+- `resume`
+
+`resume` only matters when `init.mode = restart`:
+
+- `resume = true`
+  Continue from the sweep/output context stored in the restart file
+
+- `resume = false`
+  Use the loaded structure as a fresh start with new sweep/output state
 
 ### `[engine]`
 Advanced implementation/runtime controls:
@@ -134,14 +143,15 @@ gdrug0 = 0.000
 kd0 = 0.000000
 
 [init]
-mode = initial_frame
-restartPath = /path/to/Initial_frame.dat
+mode = restart
+path = /path/to/restart_lammps.dat
 
 [runtime]
 seed = 521759
 maxSweeps = 55000
 outputDir = /tmp/heva-run
 workflow = relaxation
+resume = false
 
 [engine]
 profile = extended

@@ -32,14 +32,15 @@ gdrug0 = 0.000
 kd0 = 0.000000
 
 [init]
-mode = initial_frame
-restartPath = ./Initial_frame.dat
+mode = restart
+path = ./restart_lammps.dat
 
 [runtime]
 seed = 521759
 maxSweeps = 55000
 outputDir = ./generated/example
 workflow = relaxation
+resume = false
 
 [engine]
 profile = test

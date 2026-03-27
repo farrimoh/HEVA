@@ -3,4 +3,5 @@ test*
 *.o
 *.d
 assemble
+prepare_initial_frame
 checks/test_simulation_config

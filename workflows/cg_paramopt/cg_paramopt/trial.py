@@ -6,14 +6,17 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
+from .prepare import prepare_initial_frame
+
 
 @dataclass(frozen=True)
 class TrialSpec:
     workflow_dir: Path
     assemble_path: Path
+    prepare_initial_frame_path: Path
     base_config_path: Path
     initial_structure_path: Path
-    init_mode: str
+    input_format: str
     epsilon0: float
     kappa0: float
     kappaPhi0: float
@@ -32,6 +35,7 @@ class TrialSpec:
     frames: int
     sample_every: int
     profile: str
+    resume: bool
     index_capacity: int | None
     output_dir: Path | None = None
 
@@ -39,8 +43,11 @@ class TrialSpec:
 @dataclass(frozen=True)
 class TrialExecution:
     run_dir: Path
+    prepared_restart_path: Path
     generated_config_path: Path
+    prepare_command: list[str]
     command: list[str]
+    prepare_stdout: str
     stdout: str
     returncode: int
 
@@ -78,10 +85,7 @@ def set_optional_float(config: configparser.ConfigParser, section: str, key: str
         config[section][key] = format_float(value)
 
 
-def materialize_trial(spec: TrialSpec) -> tuple[Path, Path, list[str]]:
-    run_dir = build_run_dir(spec.workflow_dir, spec.output_dir)
-    run_dir.mkdir(parents=True, exist_ok=True)
-
+def materialize_trial(spec: TrialSpec, run_dir: Path, state_path: Path) -> tuple[Path, Path, list[str]]:
     config = load_config(spec.base_config_path)
     config["capsid_geometry"]["epsilon0"] = format_float(spec.epsilon0)
     config["capsid_geometry"]["kappa0"] = format_float(spec.kappa0)
@@ -98,12 +102,13 @@ def materialize_trial(spec: TrialSpec) -> tuple[Path, Path, list[str]]:
     set_optional_float(config, "capsid_geometry", "phi20", spec.phi20)
 
     total_sweeps = spec.relax_sweeps + spec.frames * spec.sample_every
-    config["init"]["mode"] = spec.init_mode
-    config["init"]["restartPath"] = str(spec.initial_structure_path)
+    config["init"]["mode"] = "restart"
+    config["init"]["path"] = str(state_path)
     config["runtime"]["seed"] = str(spec.seed)
     config["runtime"]["maxSweeps"] = str(total_sweeps)
     config["runtime"]["outputDir"] = str(run_dir)
     config["runtime"]["workflow"] = "relaxation"
+    config["runtime"]["resume"] = "true" if spec.resume else "false"
     config["engine"]["profile"] = spec.profile
     config["cg_paramopt"]["sampleStartSweep"] = str(spec.relax_sweeps)
     config["cg_paramopt"]["sampleEvery"] = str(spec.sample_every)
@@ -123,9 +128,38 @@ def materialize_trial(spec: TrialSpec) -> tuple[Path, Path, list[str]]:
 
 
 def execute_trial(spec: TrialSpec, *, dry_run: bool = False) -> TrialExecution:
-    run_dir, generated_config_path, command = materialize_trial(spec)
+    run_dir = build_run_dir(spec.workflow_dir, spec.output_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    prepared_restart_path = spec.initial_structure_path
+    prepare_command: list[str] = []
+    prepare_stdout = ""
+    if spec.input_format == "initial_frame":
+        prepared = prepare_initial_frame(
+            prepare_binary=spec.prepare_initial_frame_path,
+            source_path=spec.initial_structure_path,
+            destination_dir=run_dir / "prepared",
+            index_capacity=spec.index_capacity,
+            dry_run=dry_run,
+        )
+        prepared_restart_path = prepared.prepared_restart_path
+        prepare_command = prepared.command
+        prepare_stdout = prepared.stdout
+        if prepared.returncode != 0:
+            return TrialExecution(
+                run_dir,
+                prepared_restart_path,
+                run_dir / "trial_config.in",
+                prepare_command,
+                [],
+                prepare_stdout,
+                "",
+                prepared.returncode,
+            )
+
+    run_dir, generated_config_path, command = materialize_trial(spec, run_dir, prepared_restart_path)
     if dry_run:
-        return TrialExecution(run_dir, generated_config_path, command, "", 0)
+        return TrialExecution(run_dir, prepared_restart_path, generated_config_path, prepare_command, command, prepare_stdout, "", 0)
 
     repo_root = repo_root_from_workflow(spec.workflow_dir)
     result = subprocess.run(
@@ -136,5 +170,4 @@ def execute_trial(spec: TrialSpec, *, dry_run: bool = False) -> TrialExecution:
         text=True,
         check=False,
     )
-    return TrialExecution(run_dir, generated_config_path, command, result.stdout, result.returncode)
-
+    return TrialExecution(run_dir, prepared_restart_path, generated_config_path, prepare_command, command, prepare_stdout, result.stdout, result.returncode)
