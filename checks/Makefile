@@ -1,9 +1,11 @@
 CXX ?= g++
 DEBUG ?= -g
+GSL_CFLAGS ?= $(shell pkg-config --cflags gsl 2>/dev/null)
+GSL_LIBS ?= $(shell pkg-config --libs gsl 2>/dev/null)
 CPPFLAGS ?= -I../src
 CXXFLAGS ?= -Wall $(DEBUG) -O0
 LDFLAGS ?=
-LDLIBS ?=
+LDLIBS ?= $(if $(strip $(GSL_LIBS)),$(GSL_LIBS),-lgsl -lgslcblas -lm)
 DEPFLAGS ?= -MMD -MP
 
 TARGET := test_simulation_config
@@ -23,7 +25,7 @@ $(TARGET): $(OBJECTS)
 	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $(DEPFLAGS) -c $< -o $@
 
 $(INVARIANT_TARGET): test_geometry_invariants.cpp geometry_invariants.cpp ../src/tri_tri_intersect.cpp ../src/geometry.cpp ../src/montecarlo.cpp ../src/simulation_config.cpp ../src/simulation_setup.cpp
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) $^ -L/usr/lib/x86_64-linux-gnu -lgsl -lgslcblas -lm -o $@
+	$(CXX) $(CPPFLAGS) $(GSL_CFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
 smoke_run:
 	$(MAKE) -C ../src

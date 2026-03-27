@@ -80,7 +80,7 @@ int main()
     assert(config.runtime.workflow == "assembly");
     assert(config.initialization.mode == "restart");
     assert(config.initialization.seedConfig == "triangle");
-    assert(config.initialization.restartPath == "restart_lammps.dat");
+    assert(config.initialization.path == "restart_lammps.dat");
     assert(config.runtime.outputDir == "out");
     assert(config.capsidGeometry.epsilon0 == 4200.0);
     assert(config.capsidGeometry.kappaPhi0 == 800.0);
@@ -123,7 +123,7 @@ int main()
     assert(config.runtime.workflow == "relaxation");
     assert(config.initialization.mode == "seed");
     assert(config.initialization.seedConfig == "hexamer");
-    assert(config.initialization.restartPath == "fixtures/restart_lammps.dat");
+    assert(config.initialization.path.empty());
     assert(config.runtime.outputDir == "runs/smoke");
     assert(config.engine.runMode == "extended");
     assert(config.engine.indexCapacity == 2000000UL);
@@ -144,7 +144,7 @@ int main()
     assert(config.engine.runMode == "extended");
     assert(config.initialization.mode == "restart");
     assert(config.initialization.seedConfig == "triangle");
-    assert(config.initialization.restartPath == "fixtures/restart_lammps.dat");
+    assert(config.initialization.path == "fixtures/restart_lammps.dat");
     assert(config.runtime.outputDir == "fixtures/generated-output");
     assert(config.runtime.workflow == "assembly");
 

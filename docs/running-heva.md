@@ -1,5 +1,15 @@
 # Running HEVA
 
+## Requirements
+HEVA is currently tested as a Linux/WSL command-line build with:
+
+- `g++`
+- `make`
+- GNU Scientific Library (GSL) development headers and libraries
+
+If `pkg-config` can locate `gsl`, `src/Makefile` will use that automatically.
+Otherwise the default fallback link flags are `-lgsl -lgslcblas -lm`.
+
 ## Build
 From the repository root:
 
@@ -37,6 +47,9 @@ Run it with:
 cd src
 ./assemble --config ../checks/fixtures/smoke_config.in
 ```
+
+Paths inside the config file are resolved relative to the config file location,
+not relative to the shell's current working directory.
 
 ## Initialization Modes
 The `[init]` section controls how a run starts.

@@ -197,16 +197,10 @@ int main(int argc, char **argv)
     gsl_rng *rng = gsl_rng_alloc(t);
     srand((unsigned)config.runtime.seed);
     gsl_rng_set(rng, config.runtime.seed);
-    cout << "HERE " << endl;
 
     geometry g;
     set_output_directory(output_dir);
     apply_simulation_config(config, g);
-
-    cout << "l_thermal_sigma is " << g.l_thermal_sigma << endl;
-    cout << "l_thermal_kappa is " << g.l_thermal_kappa << endl;
-    cout << "theta_thermal_kappa is " << g.theta_thermal_kappa << endl;
-    cout << "gaussian sigma " << g.gaussian_sigma << endl;
 
     FILE *ofile;
     FILE *fi;
@@ -216,8 +210,6 @@ int main(int argc, char **argv)
     const SimulationConfig persisted_config = make_persisted_run_config(config, init_path, output_dir);
     g.dump_parameters();
     ofile = fopen(energy_path.c_str(), config.runtime.resume ? "a" : "w");
-    fprintf(stderr, " log files exist\n");
-    cout << " file openned" << endl;
 
     fi = fopen(run_config_path.c_str(), "w");
     const std::string rendered_config = render_simulation_config(persisted_config);
@@ -260,14 +252,7 @@ int main(int argc, char **argv)
     fclose(fi);
 
     unsigned long sweep = 0;
-    fprintf(stderr, "%s\n", assemble_usage().c_str());
-    write_invocation(stderr, persisted_config, sweep);
     cout << "# WORKFLOW " << config.runtime.workflow << endl;
-
-    for (int j = 0; j < 4; j++)
-    {
-        fprintf(stderr, "%d  g.epsilon %f g.kappa %f g.kappaPhi %f g.l0 %f  g.theta0 %f g.phi0 %f\n", j, g.epsilon[j], g.kappa[j], g.kappaPhi[j], g.l0[j], g.theta0[j], g.phi0[j]);
-    }
 
     SimulationRunStats stats;
     SimulationLoopSettings settings = make_simulation_loop_settings(config);

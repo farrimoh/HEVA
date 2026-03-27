@@ -1,9 +1,11 @@
 CXX ?= g++
 DEBUG ?= -g
-CPPFLAGS ?= -I/usr/include
+GSL_CFLAGS ?= $(shell pkg-config --cflags gsl 2>/dev/null)
+GSL_LIBS ?= $(shell pkg-config --libs gsl 2>/dev/null)
+CPPFLAGS ?= $(GSL_CFLAGS)
 CXXFLAGS ?= -Wall $(DEBUG) -O3 -ffast-math -funroll-loops
-LDFLAGS ?= -L/usr/lib/x86_64-linux-gnu
-LDLIBS ?= -lgsl -lgslcblas -lm
+LDFLAGS ?=
+LDLIBS ?= $(if $(strip $(GSL_LIBS)),$(GSL_LIBS),-lgsl -lgslcblas -lm)
 DEPFLAGS ?= -MMD -MP
 
 ASSEMBLE_TARGET := assemble
