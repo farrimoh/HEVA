@@ -4,8 +4,11 @@
 #include "montecarlo.hpp"
 
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <memory>
+#include <stdexcept>
 
 using namespace std;
 
@@ -52,6 +55,8 @@ SimulationLoopSettings::SimulationLoopSettings()
 
 namespace
 {
+using FileHandle = std::unique_ptr<FILE, int (*)(FILE *)>;
+
 int elapsed_seconds(time_t start_time)
 {
     time_t timer2;
@@ -208,6 +213,16 @@ void write_stop_snapshot(geometry &g, FILE *ofile, unsigned long sweep, unsigned
     dump_analysis(g, ofile, sweep, seed, seconds);
     dump_restart_lammps_data_file(g, sweep);
 }
+
+FileHandle open_output_file(const std::string &path, const char *mode)
+{
+    FILE *stream = std::fopen(path.c_str(), mode);
+    if (stream == nullptr)
+    {
+        throw std::runtime_error("Failed to open '" + path + "'.");
+    }
+    return FileHandle(stream, &std::fclose);
+}
 }
 
 SimulationLoopSettings make_simulation_loop_settings(const SimulationConfig &config)
@@ -244,7 +259,7 @@ void initialize_from_restart(geometry &g, gsl_rng *rng, const char *filename, un
 
     energy = g.compute_energy();
     print_energy_state(g, energy, stats.frame, "after equilibration");
-    fprintf(stderr, "Graph initialized.\n");
+    std::cerr << "Graph initialized." << std::endl;
 
     if (g.Nboundary == 1)
     {
@@ -282,7 +297,7 @@ void initialize_from_seed(geometry &g, gsl_rng *rng, const char *seed_config, un
 
     energy = g.compute_energy();
     print_energy_state(g, energy, stats.frame, "after equilibration");
-    fprintf(stderr, "Graph initialized.\n");
+    std::cerr << "Graph initialized." << std::endl;
     dump_restart_lammps_data_file(g, sweep);
 }
 
@@ -562,7 +577,7 @@ SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile,
             {
                 if (g.NCD_T4_in > 0 && g.NCD_T3_in > 0 && abs(g.Nhe - stats.lastNheGrowth) <= 4)
                 {
-                    fprintf(stderr, "STOP for now - not growing\n");
+                    std::cerr << "STOP for now - not growing" << std::endl;
                     g.update_boundary();
                     dump_lammps_data_dimers(g, 333333333);
                     dump_lammps_data_dimers(g, 11111111);
@@ -577,7 +592,7 @@ SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile,
 
         if (sweep == 200000000)
         {
-            fprintf(stderr, "STOP for now - too long\n");
+            std::cerr << "STOP for now - too long" << std::endl;
             g.update_boundary();
             dump_lammps_data_dimers(g, 77777777);
             write_stop_snapshot(g, ofile, sweep, seed, start_time);
@@ -586,7 +601,7 @@ SimulationStopReason run_simulation_loop(geometry &g, gsl_rng *rng, FILE *ofile,
 
         if (g.Nhe >= 310 || g.Nv >= 65)
         {
-            fprintf(stderr, "STOP for now - too large\n");
+            std::cerr << "STOP for now - too large" << std::endl;
             g.update_boundary();
             dump_lammps_data_dimers(g, 88888888);
             dump_lammps_data_dimers(g, 11111111);
@@ -642,7 +657,7 @@ void finalize_simulation(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long s
     }
     else
     {
-        fprintf(stderr, "STOP for now - %s\n", stop_reason_label(stop_reason));
+        std::cerr << "STOP for now - " << stop_reason_label(stop_reason) << std::endl;
         g.update_boundary();
     }
 
@@ -656,7 +671,6 @@ void finalize_simulation(geometry &g, gsl_rng *rng, FILE *ofile, unsigned long s
     int seconds = elapsed_seconds(start_time);
     dump_analysis(g, ofile, sweep, seed, seconds);
 
-    FILE *finalfile = fopen(output_file_path("last.dat").c_str(), "w");
-    dump_analysis(g, finalfile, sweep, seed, seconds);
-    fclose(finalfile);
+    FileHandle finalfile = open_output_file(output_file_path("last.dat"), "w");
+    dump_analysis(g, finalfile.get(), sweep, seed, seconds);
 }

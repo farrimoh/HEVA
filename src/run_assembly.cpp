@@ -36,18 +36,24 @@
 
 #include <cerrno>
 #include <climits>
+#include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <string>
 #include <time.h>
 #include <unistd.h>
 
-using namespace std;
-
 namespace
 {
+using FileHandle = std::unique_ptr<FILE, int (*)(FILE *)>;
+
 bool is_absolute_path(const std::string &path)
 {
     return !path.empty() && path[0] == '/';
@@ -147,12 +153,82 @@ SimulationConfig make_persisted_run_config(const SimulationConfig &config, const
     return persisted;
 }
 
-void write_invocation(FILE *stream, const SimulationConfig &config, unsigned long sweep)
+std::string format_invocation(const SimulationConfig &config, unsigned long sweep)
 {
-    const std::string rendered = render_simulation_config(config);
-    fprintf(stream, "# normalized run configuration\n%s", rendered.c_str());
-    fprintf(stream, "\n# effective engine.profile=%s engine.indexCapacity=%lu sweep=%lu\n",
-            config.engine.runMode.c_str(), config.engine.indexCapacity, sweep);
+    std::ostringstream output;
+    output << "# normalized run configuration\n"
+           << render_simulation_config(config)
+           << "\n# effective engine.profile=" << config.engine.runMode
+           << " engine.indexCapacity=" << config.engine.indexCapacity
+           << " sweep=" << sweep << "\n";
+    return output.str();
+}
+
+FileHandle open_c_file(const std::string &path, const char *mode)
+{
+    FILE *stream = std::fopen(path.c_str(), mode);
+    if (stream == nullptr)
+    {
+        throw std::runtime_error("Failed to open '" + path + "': " + std::strerror(errno));
+    }
+    return FileHandle(stream, &std::fclose);
+}
+
+void write_text_file(const std::string &path, const std::string &contents)
+{
+    std::ofstream output(path.c_str());
+    if (!output.good())
+    {
+        throw std::runtime_error("Failed to open '" + path + "' for writing.");
+    }
+    output << contents;
+    if (!output.good())
+    {
+        throw std::runtime_error("Failed while writing '" + path + "'.");
+    }
+}
+
+void write_parameter_report(std::ostream &output,
+                            std::ostream &log,
+                            const SimulationConfig &persisted_config,
+                            const geometry &g)
+{
+    output << assemble_usage() << '\n';
+    output << format_invocation(persisted_config, 0UL);
+
+    for (int i = 0; i < g.Ntype; i++)
+    {
+        for (int j = 0; j < g.Ntype; j++)
+        {
+            if (g.gb[i][j] != 0)
+            {
+                output << std::fixed << std::setprecision(3)
+                       << "half_edge " << i << " -> " << j << " : " << g.gb[i][j] << " kT\n";
+                log << std::fixed << std::setprecision(3)
+                    << "half_edge " << i << " -> " << j << " : " << g.gb[i][j] << " kT\n";
+            }
+        }
+    }
+
+    for (int i = 0; i < g.Ntype; i++)
+    {
+        for (int j = 0; j < g.Ntype; j++)
+        {
+            if (g.gdrug[i][j] != 0)
+            {
+                output << std::fixed << std::setprecision(3)
+                       << "half_edge " << i << " -> " << j << " : " << g.gdrug[i][j] << " kT\n";
+                log << std::fixed << std::setprecision(3)
+                    << "half_edge " << i << " -> " << j << " : " << g.gdrug[i][j] << " kT\n";
+            }
+        }
+    }
+
+    output << std::fixed << std::setprecision(5)
+           << "theta_thermal_kappa " << g.theta_thermal_kappa << '\n'
+           << "l_thermal_kappa " << g.l_thermal_kappa << '\n'
+           << "l_thermal_epsilon " << g.l_thermal_sigma << '\n'
+           << "gaussian sigma " << g.gaussian_sigma << '\n';
 }
 }
 
@@ -202,80 +278,59 @@ int main(int argc, char **argv)
     set_output_directory(output_dir);
     apply_simulation_config(config, g);
 
-    FILE *ofile;
-    FILE *fi;
     const std::string energy_path = join_paths(output_dir, "energy.dat");
     const std::string run_config_path = join_paths(output_dir, "run_config.out");
     const std::string parameters_path = join_paths(output_dir, "parameters_run.out");
     const SimulationConfig persisted_config = make_persisted_run_config(config, init_path, output_dir);
     g.dump_parameters();
-    ofile = fopen(energy_path.c_str(), config.runtime.resume ? "a" : "w");
-
-    fi = fopen(run_config_path.c_str(), "w");
-    const std::string rendered_config = render_simulation_config(persisted_config);
-    fprintf(fi, "%s", rendered_config.c_str());
-    fclose(fi);
-
-    fi = fopen(parameters_path.c_str(), config.runtime.resume ? "a" : "w");
-    fprintf(fi, "%s\n", assemble_usage().c_str());
-    write_invocation(fi, persisted_config, 0UL);
-
-    for (int i = 0; i < g.Ntype; i++)
+    try
     {
-        for (int j = 0; j < g.Ntype; j++)
+        FileHandle energy_file = open_c_file(energy_path, config.runtime.resume ? "a" : "w");
+        write_text_file(run_config_path, render_simulation_config(persisted_config));
+
+        std::ofstream parameters_output(parameters_path.c_str(),
+                                        config.runtime.resume ? (std::ios::out | std::ios::app) : std::ios::out);
+        if (!parameters_output.good())
         {
-            if (g.gb[i][j] != 0)
-            {
-                fprintf(fi, "half_edge %d -> %d : %.3f kT \n", i, j, g.gb[i][j]);
-                fprintf(stderr, "half_edge %d -> %d : %.3f kT \n", i, j, g.gb[i][j]);
-            }
+            throw std::runtime_error("Failed to open '" + parameters_path + "' for writing.");
         }
-    }
 
-    for (int i = 0; i < g.Ntype; i++)
-    {
-        for (int j = 0; j < g.Ntype; j++)
+        write_parameter_report(parameters_output, std::cerr, persisted_config, g);
+        if (!parameters_output.good())
         {
-            if (g.gdrug[i][j] != 0)
-            {
-                fprintf(fi, "half_edge %d -> %d : %.3f kT \n", i, j, g.gdrug[i][j]);
-                fprintf(stderr, "half_edge %d -> %d : %.3f kT \n", i, j, g.gdrug[i][j]);
-            }
+            throw std::runtime_error("Failed while writing '" + parameters_path + "'.");
         }
-    }
 
-    fprintf(fi, "theta_thermal_kappa %.5f\n", g.theta_thermal_kappa);
-    fprintf(fi, "l_thermal_kappa %.5f\n", g.l_thermal_kappa);
-    fprintf(fi, "l_thermal_epsilon %.5f\n", g.l_thermal_sigma);
-    fprintf(fi, "gaussian sigma %.5f\n", g.gaussian_sigma);
-    fflush(fi);
-    fclose(fi);
+        unsigned long sweep = 0;
+        std::cout << "# WORKFLOW " << config.runtime.workflow << std::endl;
 
-    unsigned long sweep = 0;
-    cout << "# WORKFLOW " << config.runtime.workflow << endl;
-
-    SimulationRunStats stats;
-    SimulationLoopSettings settings = make_simulation_loop_settings(config);
-    if (config.initialization.mode == "restart")
-    {
-        initialize_from_restart(g, rng, init_path.c_str(), sweep, stats, settings);
+        SimulationRunStats stats;
+        SimulationLoopSettings settings = make_simulation_loop_settings(config);
+        if (config.initialization.mode == "restart")
+        {
+            initialize_from_restart(g, rng, init_path.c_str(), sweep, stats, settings);
+        }
+        else
+        {
+            initialize_from_seed(g, rng, config.initialization.seedConfig.c_str(), sweep, stats, settings);
+        }
+        SimulationStopReason stop_reason = SIMULATION_STOP_MAX_SWEEPS;
+        if (config.runtime.workflow == "relaxation")
+        {
+            stop_reason = run_relaxation_loop(g, rng, energy_file.get(), config.runtime.seed, timer1, sweep, stats, settings);
+        }
+        else
+        {
+            stop_reason = run_simulation_loop(g, rng, energy_file.get(), config.runtime.seed, timer1, sweep, config.simulation.ks0, stats, settings);
+        }
+        finalize_simulation(g, rng, energy_file.get(), config.runtime.seed, timer1, sweep, stats, settings, stop_reason);
     }
-    else
+    catch (const std::exception &error)
     {
-        initialize_from_seed(g, rng, config.initialization.seedConfig.c_str(), sweep, stats, settings);
+        std::cerr << error.what() << std::endl;
+        gsl_rng_free(rng);
+        return -1;
     }
-    SimulationStopReason stop_reason = SIMULATION_STOP_MAX_SWEEPS;
-    if (config.runtime.workflow == "relaxation")
-    {
-        stop_reason = run_relaxation_loop(g, rng, ofile, config.runtime.seed, timer1, sweep, stats, settings);
-    }
-    else
-    {
-        stop_reason = run_simulation_loop(g, rng, ofile, config.runtime.seed, timer1, sweep, config.simulation.ks0, stats, settings);
-    }
-    finalize_simulation(g, rng, ofile, config.runtime.seed, timer1, sweep, stats, settings, stop_reason);
-
-    fclose(ofile);
     gsl_rng_free(rng);
     return 0;
 }
