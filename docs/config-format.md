@@ -149,7 +149,7 @@ path = /path/to/restart_lammps.dat
 [runtime]
 seed = 521759
 maxSweeps = 55000
-outputDir = /tmp/heva-run
+outputDir = /path/to/heva-run
 workflow = relaxation
 resume = false
 

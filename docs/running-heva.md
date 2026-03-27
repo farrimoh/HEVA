@@ -25,17 +25,17 @@ HEVA now runs through sectioned config files:
 Run from `src/` or use the full path to `src/assemble`.
 
 ## Example Trial
-The repository includes a sample config at:
+The repository includes a committed smoke-test config at:
 
 ```text
-.local/docs/fast_capsid_trial.in
+checks/fixtures/smoke_config.in
 ```
 
 Run it with:
 
 ```bash
 cd src
-./assemble --config ../.local/docs/fast_capsid_trial.in
+./assemble --config ../checks/fixtures/smoke_config.in
 ```
 
 ## Initialization Modes
@@ -77,18 +77,11 @@ The HEVA-native CG parameter workflow lives under:
 workflows/cg_paramopt/
 ```
 
-Typical usage from the repository root:
+For CG-ParamOpt usage and examples, see:
 
-```bash
-python3 workflows/cg_paramopt/scripts/run_trial.py \
-  --initial-structure /path/to/Initial_frame.dat \
-  --input-format initial_frame \
-  --epsilon0 4200 \
-  --kappa0 40 \
-  --kappaPhi0 800
-```
+- `workflows/cg_paramopt/README.md`
 
-That workflow first converts the AA-translated initial frame into a standard HEVA `restart_lammps.dat`, then runs `workflow = relaxation` with `init.mode = restart` and `runtime.resume = false`. The sampled geometry is written into `data.dat` for downstream optimization.
+That workflow uses HEVA's standard `init.mode = restart` and `runtime.resume = false` path after its workflow-specific preparation step.
 
 ## Validated Examples
 The following concrete commands were exercised during the init/resume cleanup pass.
@@ -96,17 +89,17 @@ The following concrete commands were exercised during the init/resume cleanup pa
 Seeded assembly starts:
 
 ```bash
-cd /mnt/d/Coding/HEVA/HEVA/src
-./assemble --config /tmp/heva-seed-triangle.in
-./assemble --config /tmp/heva-seed-pentamer.in
+cd src
+./assemble --config /path/to/heva-seed-triangle.in
+./assemble --config /path/to/heva-seed-pentamer.in
 ```
 
 Restart-source fresh start versus continuation:
 
 ```bash
-cd /mnt/d/Coding/HEVA/HEVA/src
-./assemble --config /tmp/heva-restart-fresh-from-seed.in
-./assemble --config /tmp/heva-restart-resume-from-seed.in
+cd src
+./assemble --config /path/to/heva-restart-fresh-from-seed.in
+./assemble --config /path/to/heva-restart-resume-from-seed.in
 ```
 
 These scenarios verified:

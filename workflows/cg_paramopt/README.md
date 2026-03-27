@@ -1,6 +1,6 @@
 # HEVA CG ParamOpt Workflow
 
-This workflow reproduces the **legacy CG-ParamOpt run shape** on top of the maintained HEVA backend instead of copying the old C++ source tree into HEVA.
+This workflow reproduces the historical CG-ParamOpt run shape on top of the maintained HEVA backend instead of copying the old C++ source tree into HEVA.
 
 ## Scope
 
@@ -8,7 +8,7 @@ This workflow is for:
 
 - relaxing a fixed initialized structure
 - sampling geometry without assembly moves
-- writing legacy-style `data.dat` output for downstream optimization
+- writing CG-ParamOpt-compatible `data.dat` output for downstream optimization
 
 It is not an assembly optimization workflow.
 
@@ -16,10 +16,10 @@ It is not an assembly optimization workflow.
 
 The split between C++ and Python is intentional:
 
-- C++ keeps restart loading, relaxation-only Monte Carlo, per-sample observable export, and a small AA-translated `Initial_frame.dat` preparation binary
-- Python keeps trial-directory setup, initial-frame preparation orchestration, config generation, seed/output management, and AA-data preparation
+- C++ keeps restart loading, relaxation-only Monte Carlo, per-sample observable export, and a small AA-translated `Initial_frame.dat` preparation binary that applies the CG-ParamOpt scaling/normalization step before writing a HEVA restart file
+- Python keeps trial-directory setup, AA-translated initial-frame preparation orchestration, config generation, seed/output management, and AA-data preparation
 
-This keeps HEVA as the simulation backend while preserving the old workflow contract where it matters.
+This keeps HEVA as the simulation backend while preserving the historical workflow contract where it matters.
 
 ## What Was Added To HEVA
 
@@ -29,9 +29,9 @@ The HEVA backend now supports:
 - `init.path` as the generic path for restart-style state files
 - `runtime.resume = true | false` to distinguish continuation from fresh-start semantics
 - `runtime.workflow = relaxation` for move-vertex-only evolution
-- optional `[cg_paramopt]` sampling controls that append legacy-style geometry rows into `data.dat`
-- optional legacy geometry-reference parameters in `[capsid_geometry]`
-- `src/prepare_initial_frame` to convert AA-translated `Initial_frame.dat` inputs into standard HEVA `restart_lammps.dat` files
+- optional `[cg_paramopt]` sampling controls that append CG-ParamOpt-compatible geometry rows into `data.dat`
+- optional CG-ParamOpt geometry-reference parameters in `[capsid_geometry]`
+- `src/prepare_initial_frame` to apply the CG-ParamOpt AA-frame scaling/normalization and write a standard HEVA `restart_lammps.dat`
 
 ## Files
 
@@ -56,18 +56,20 @@ workflows/cg_paramopt/
 
 ## Trial Run
 
-From the HEVA repository root:
+From the HEVA repository root, using a CG-ParamOpt `Initial_frame.dat` input:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/run_trial.py \
-  --initial-structure /mnt/d/Coding/SimOpt/CG-ParamOpt/data/HE-AA-lammps1.dat \
+  --initial-structure /path/to/Initial_frame.dat \
   --input-format initial_frame \
   --epsilon0 4200 \
   --kappa0 40 \
   --kappaPhi0 800
 ```
 
-By default this mirrors the legacy cadence:
+In this workflow, `initial_frame` means the CG-ParamOpt `Initial_frame.dat` source that still needs the preparation step, including the AA-derived scaling/normalization needed before it becomes a normal HEVA restart file.
+
+By default this mirrors the historical cadence:
 
 - `50000` relaxation sweeps
 - `5000` sampled frames
@@ -94,7 +96,7 @@ python3 workflows/cg_paramopt/scripts/run_trial.py \
   --relax-sweeps 10000
 ```
 
-If you already have a HEVA restart-style file, skip the initial-frame prep step and start fresh from it:
+If you already have a HEVA restart-style file, skip the AA-translated initial-frame prep step and start fresh from it:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/run_trial.py \
@@ -105,17 +107,17 @@ python3 workflows/cg_paramopt/scripts/run_trial.py \
   --kappaPhi0 800
 ```
 
-To prepare a restart-style file without running a trial:
+To apply that AA-frame scaling/normalization step and write a restart-style file without running a trial:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/prepare_initial_frame.py \
   --input /path/to/Initial_frame.dat \
-  --output-dir /tmp/heva-prepared
+  --output-dir /path/to/prepared-frame
 ```
 
 ## AA Reference Extraction
 
-To convert AA graph dumps into the CSV layout expected by legacy optimization code:
+To convert AA graph dumps into the CSV layout expected by the CG-ParamOpt optimizer:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/extract_aa_data.py \
@@ -158,21 +160,21 @@ python3 workflows/cg_paramopt/scripts/optimize.py \
 This keeps the optimizer in Python while leaving preparation, restart loading, relaxation, and observable sampling in HEVA.
 
 ## Validated Scenarios
-The following commands were run successfully during the cleanup pass:
+The following command shapes were run successfully during the cleanup pass. Replace the placeholder paths with your own inputs and output directory.
 
-Initial-frame preparation only:
+AA-translated initial-frame preparation only:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/prepare_initial_frame.py \
-  --input /mnt/d/Coding/SimOpt/CG-ParamOpt/data/HE-AA-lammps1.dat \
-  --output-dir /tmp/heva-cgopt-prepared
+  --input /path/to/Initial_frame.dat \
+  --output-dir /path/to/prepared-frame
 ```
 
-Initial-frame input -> prepared restart -> fresh relaxation trial:
+AA-translated initial-frame input -> prepared restart -> fresh relaxation trial:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/run_trial.py \
-  --initial-structure /mnt/d/Coding/SimOpt/CG-ParamOpt/data/HE-AA-lammps1.dat \
+  --initial-structure /path/to/Initial_frame.dat \
   --input-format initial_frame \
   --epsilon0 4200 \
   --kappa0 40 \
@@ -180,14 +182,14 @@ python3 workflows/cg_paramopt/scripts/run_trial.py \
   --frames 1 \
   --relax-sweeps 2 \
   --sample-every 1 \
-  --output-dir /tmp/heva-cgopt-legacy-refactor
+  --output-dir /path/to/run-initial-frame
 ```
 
 Restart-style input -> fresh relaxation trial:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/run_trial.py \
-  --initial-structure /mnt/d/Coding/HEVA/HEVA/checks/fixtures/restart_lammps.dat \
+  --initial-structure checks/fixtures/restart_lammps.dat \
   --input-format restart \
   --epsilon0 4200 \
   --kappa0 40 \
@@ -195,14 +197,14 @@ python3 workflows/cg_paramopt/scripts/run_trial.py \
   --frames 1 \
   --relax-sweeps 2 \
   --sample-every 1 \
-  --output-dir /tmp/heva-cgopt-restart-fresh
+  --output-dir /path/to/run-restart-fresh
 ```
 
 Restart-style input -> continuation:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/run_trial.py \
-  --initial-structure /mnt/d/Coding/HEVA/HEVA/checks/fixtures/restart_lammps.dat \
+  --initial-structure checks/fixtures/restart_lammps.dat \
   --input-format restart \
   --resume \
   --epsilon0 4200 \
@@ -211,15 +213,15 @@ python3 workflows/cg_paramopt/scripts/run_trial.py \
   --frames 1 \
   --relax-sweeps 80391 \
   --sample-every 1 \
-  --output-dir /tmp/heva-cgopt-restart-resume
+  --output-dir /path/to/run-restart-resume
 ```
 
 Optimizer single-run checks:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/optimize.py \
-  --aa-data /mnt/d/Coding/SimOpt/CG-ParamOpt/data/AAdata.csv \
-  --initial-structure /mnt/d/Coding/SimOpt/CG-ParamOpt/data/HE-AA-lammps1.dat \
+  --aa-data /path/to/AAdata.csv \
+  --initial-structure /path/to/Initial_frame.dat \
   --input-format initial_frame \
   --single-run 2.15 1.25 1.80 \
   --frames 1 \
@@ -229,8 +231,8 @@ python3 workflows/cg_paramopt/scripts/optimize.py \
 
 ```bash
 python3 workflows/cg_paramopt/scripts/optimize.py \
-  --aa-data /mnt/d/Coding/SimOpt/CG-ParamOpt/data/AAdata.csv \
-  --initial-structure /mnt/d/Coding/HEVA/HEVA/checks/fixtures/restart_lammps.dat \
+  --aa-data /path/to/AAdata.csv \
+  --initial-structure checks/fixtures/restart_lammps.dat \
   --input-format restart \
   --single-run 2.15 1.25 1.80 \
   --frames 1 \
@@ -242,8 +244,8 @@ Short search checks:
 
 ```bash
 python3 workflows/cg_paramopt/scripts/optimize.py \
-  --aa-data /mnt/d/Coding/SimOpt/CG-ParamOpt/data/AAdata.csv \
-  --initial-structure /mnt/d/Coding/SimOpt/CG-ParamOpt/data/HE-AA-lammps1.dat \
+  --aa-data /path/to/AAdata.csv \
+  --initial-structure /path/to/Initial_frame.dat \
   --input-format initial_frame \
   --max-evals 2 \
   --frames 1 \
@@ -253,8 +255,8 @@ python3 workflows/cg_paramopt/scripts/optimize.py \
 
 ```bash
 python3 workflows/cg_paramopt/scripts/optimize.py \
-  --aa-data /mnt/d/Coding/SimOpt/CG-ParamOpt/data/AAdata.csv \
-  --initial-structure /mnt/d/Coding/HEVA/HEVA/checks/fixtures/restart_lammps.dat \
+  --aa-data /path/to/AAdata.csv \
+  --initial-structure checks/fixtures/restart_lammps.dat \
   --input-format restart \
   --max-evals 2 \
   --frames 1 \
@@ -273,14 +275,14 @@ Observed validation signals:
 
 - init semantics are now centered on `seed` versus `restart`
 - continuation semantics are controlled by `runtime.resume`
-- CG-ParamOpt initial-frame compatibility is isolated behind `prepare_initial_frame`
+- CG-ParamOpt AA-translated initial-frame compatibility is isolated behind `prepare_initial_frame`
 - remaining cleanup is mostly polish: reducing noisy initial-frame preparation console prints and tightening the docs further if needed
 
 ## Outputs
 
 Each run directory contains:
 
-- `prepared/restart_lammps.dat` when `--input-format initial_frame`
+- `prepared/restart_lammps.dat` when `--input-format initial_frame` on an AA-translated input
 - `trial_config.in`
 - `data.dat`
 - `energy.dat`
@@ -288,7 +290,7 @@ Each run directory contains:
 - `run_config.out`
 - `parameters_run.out`
 
-The key optimization-facing artifact is `data.dat`, which uses the legacy column layout:
+The key optimization-facing artifact is `data.dat`, which uses the historical CG-ParamOpt column layout:
 
 ```text
 L0,L1,Theta0,Theta1,Phi33,Phi01,Phi12,Phi20
