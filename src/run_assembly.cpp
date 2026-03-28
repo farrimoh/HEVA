@@ -228,7 +228,11 @@ void write_parameter_report(std::ostream &output,
            << "theta_thermal_kappa " << g.theta_thermal_kappa << '\n'
            << "l_thermal_kappa " << g.l_thermal_kappa << '\n'
            << "l_thermal_epsilon " << g.l_thermal_sigma << '\n'
-           << "gaussian sigma " << g.gaussian_sigma << '\n';
+           << "gaussian sigma " << g.gaussian_sigma << '\n'
+           << "core.enabled " << (persisted_config.core.enabled ? "true" : "false") << '\n'
+           << "core.maxBonds " << persisted_config.core.maxBonds << '\n'
+           << "core.epsilonLJ " << persisted_config.core.epsilonLJ << '\n'
+           << "core.sigmaLJ " << persisted_config.core.sigmaLJ << '\n';
 }
 }
 

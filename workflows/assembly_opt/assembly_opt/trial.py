@@ -32,6 +32,10 @@ class TrialSpec:
     mudrug: float
     gdrug0: float
     kd0: float
+    core_enabled: bool
+    core_max_bonds: int
+    core_epsilon_lj: float
+    core_sigma_lj: float
     dg12: float
     dg01: float
     dg20: float
@@ -73,6 +77,8 @@ def format_float(value: float) -> str:
 
 def materialize_trial(spec: TrialSpec) -> tuple[Path, list[str]]:
     config = load_config(spec.base_config_path)
+    if "core" not in config:
+        config.add_section("core")
 
     config["capsid_geometry"]["epsilon0"] = format_float(spec.epsilon0)
     config["capsid_geometry"]["kappa0"] = format_float(spec.kappa0)
@@ -95,6 +101,11 @@ def materialize_trial(spec: TrialSpec) -> tuple[Path, list[str]]:
     config["drug"]["mudrug"] = format_float(spec.mudrug)
     config["drug"]["gdrug0"] = format_float(spec.gdrug0)
     config["drug"]["kd0"] = format_float(spec.kd0)
+
+    config["core"]["enabled"] = "true" if spec.core_enabled else "false"
+    config["core"]["maxBonds"] = str(spec.core_max_bonds)
+    config["core"]["epsilonLJ"] = format_float(spec.core_epsilon_lj)
+    config["core"]["sigmaLJ"] = format_float(spec.core_sigma_lj)
 
     config["init"]["mode"] = spec.init_mode
     if spec.init_mode == "restart":

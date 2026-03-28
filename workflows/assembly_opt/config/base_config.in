@@ -23,6 +23,12 @@ mudrug = 0.000
 gdrug0 = 0.000
 kd0 = 0.000000
 
+[core]
+enabled = false
+maxBonds = 1000
+epsilonLJ = 0.000000
+sigmaLJ = 0.000000
+
 [init]
 mode = pentamer
 seedShape = pentamer

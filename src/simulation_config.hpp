@@ -42,6 +42,14 @@ struct DrugParameterConfig
     double kd0;
 };
 
+struct CoreParameterConfig
+{
+    bool enabled;
+    unsigned long maxBonds;
+    double epsilonLJ;
+    double sigmaLJ;
+};
+
 struct InitializationConfig
 {
     std::string mode;
@@ -76,6 +84,7 @@ struct SimulationConfig
     CapsidGeometryConfig capsidGeometry;
     SimulationParameterConfig simulation;
     DrugParameterConfig drug;
+    CoreParameterConfig core;
     InitializationConfig initialization;
     RuntimeConfig runtime;
     EngineConfig engine;

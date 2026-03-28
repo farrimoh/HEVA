@@ -8,3 +8,4 @@ __pycache__/
 assemble
 prepare_initial_frame
 checks/test_simulation_config
+!checks/test_core_energy.cpp

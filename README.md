@@ -50,6 +50,7 @@ For build, run, configuration, output-file, and architecture details, see `docs/
 
 - [docs/running-heva.md](docs/running-heva.md)
 - [docs/config-format.md](docs/config-format.md)
+- [docs/with-core-migration.md](docs/with-core-migration.md)
 - [docs/output-files.md](docs/output-files.md)
 - [docs/architecture.md](docs/architecture.md)
 

@@ -404,6 +404,10 @@ void geometry::initialize(int Ntype0, unsigned long index_capacity)
 	dg=0;
 	mudimer=0;
 	mudrug=0;
+	core_enabled=false;
+	maxbondsRNA=0;
+	epsilon_lj=0;
+	sigma_lj=0;
 
 	gaussian_sigma=0;
 	l_thermal_sigma=0;
@@ -3829,6 +3833,25 @@ double geometry::compute_bind_energy()
 	return tot_bind;
 }
 
+double geometry::RNA_bind_energy(int heindex0)
+{
+	if (!core_enabled || heindex0 < 0 || heindex0 >= static_cast<int>(he.size()))
+	{
+		return 0.0;
+	}
+	if (Nhe > maxbondsRNA)
+	{
+		return 0.0;
+	}
+
+	double rh = norm(he[heindex0].hecent);
+	if (dot(he[heindex0].n, he[heindex0].hecent) > 0)
+	{
+		return MORSE(rh, epsilon_lj, sigma_lj);
+	}
+	return WLJ(rh, epsilon_lj, sigma_lj * .8);
+}
+
 double geometry::compute_energy()
 {
 	double tot_eng = 0;
@@ -3848,6 +3871,7 @@ double geometry::compute_energy()
 		//cout << "i is " << i  << " + dbend total energy is" << tot_eng <<endl;
 		double temp2 = dimer_bend_energy(heindex0);
 		tot_eng += temp2;
+		tot_eng += RNA_bind_energy(heindex0);
 	}
 	return tot_eng; // double count
 }
@@ -3922,6 +3946,8 @@ double geometry::vertex_energy(int vid0)
 		//cout << "vertex_energy heindex0 " << heindex << "bend energy           " << bend_energy(heindex) << endl;
 		v_eng += dimer_bend_energy(heindex);
 		//cout << "vertex_energy heindex0 " << heindex << "dimer bend energy     " << dimer_bend_energy(heindex) << endl;
+		update_half_edge(*ithe);
+		v_eng += RNA_bind_energy(heindex);
 
 		if (he[heindex].previd != -1)
 		{
@@ -3932,6 +3958,8 @@ double geometry::vertex_energy(int vid0)
 			//if (is_boundary(he[heindex].previd)<0) {
 			v_eng += bend_energy(previndex);
 			//cout << "vertex_energy previndex " << previndex << "bend energy          " <<bend_energy(previndex) <<endl;
+			update_half_edge(he[heindex].previd);
+			v_eng += RNA_bind_energy(previndex);
 			//}
 		}
 		if (he[heindex].nextid != -1)
@@ -3939,6 +3967,8 @@ double geometry::vertex_energy(int vid0)
 			int nextindex = heidtoindex[he[heindex].nextid];
 			v_eng += dimer_bend_energy(nextindex);
 			//cout << "vertex_energy nextindex " << nextindex << "dimer bend energy      " << dimer_bend_energy(nextindex) <<endl;
+			update_half_edge(he[heindex].nextid);
+			v_eng += RNA_bind_energy(nextindex);
 		}
 		/* in case of existance of bound surface add it */
 		if (is_boundary(he[heindex].opid) > 0)
@@ -4365,6 +4395,26 @@ void randvec(double *v, gsl_rng *r)
 	//cout <<"normalized v[0] is  " << v[0] <<endl;
 	//v[1]/=vlen;
 	//v[2]/=vlen;
+}
+
+double LJ(double r, double epsilon, double sigma)
+{
+	return 4.0 * epsilon * (pow(sigma, 12) / pow(r, 12) - (pow(sigma, 6) / pow(r, 6)));
+}
+
+double WLJ(double r, double epsilon, double sigma)
+{
+	if (r < sigma)
+	{
+		return LJ(r, epsilon, sigma);
+	}
+	return 0.0;
+}
+
+double MORSE(double r, double epsilon, double r0)
+{
+	double alpha = 5;
+	return epsilon * (exp(-2 * alpha * (r - r0)) - 2 * exp(-alpha * (r - r0)));
 }
 
 void dump_lammps_traj(geometry &g, int time0)

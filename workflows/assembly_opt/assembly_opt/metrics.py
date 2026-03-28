@@ -6,7 +6,7 @@ import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from .config import PARAMETER_ORDER, RuntimeConfig
+from .config import RuntimeConfig
 
 
 STOP_REASON_PATTERN = re.compile(r"STOP REASON\s+([A-Za-z0-9_]+)")
@@ -148,9 +148,8 @@ def write_seed_outcomes(path: Path, outcomes: list[SeedOutcome]) -> None:
 
 def write_summary_json(path: Path, summary: EvaluationSummary, params: dict[str, float], evaluation_dir: Path) -> None:
     payload = {
-        "parameters": {name: params[name] for name in PARAMETER_ORDER},
+        "parameters": params,
         "summary": asdict(summary),
         "evaluation_dir": str(evaluation_dir),
     }
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-
