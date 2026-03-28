@@ -1,0 +1,38 @@
+[capsid_geometry]
+epsilon0 = 2500.000
+kappa0 = 100.000
+kappaPhi0 = 1000.000
+theta0 = 0.240
+theta1 = 0.480
+gb0 = -6.800
+dg12 = 0.300
+dg01 = 0.100
+dg20 = -0.100
+dg33 = 0.000
+dg00 = -0.700
+dgother = -0.800
+
+[simulation]
+muCd = -7.000
+ks0 = 0.002000
+dmu = -3.000
+dg = 0.100
+
+[drug]
+mudrug = 0.000
+gdrug0 = 0.000
+kd0 = 0.000000
+
+[init]
+mode = pentamer
+seedShape = pentamer
+
+[runtime]
+seed = 1000
+maxSweeps = 0
+outputDir = ./generated/example
+workflow = assembly
+resume = false
+
+[engine]
+profile = run

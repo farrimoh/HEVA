@@ -51,13 +51,13 @@ EOF
 
 "${binary_path}" \
   --config "${config_path}" \
-  --max-sweeps 5 \
+  --max-sweeps 500 \
   > "${workdir}/stdout.txt" 2> "${workdir}/stderr.txt"
 
 test -s "${output_dir}/energy.dat"
 test -s "${output_dir}/last.dat"
 grep -q "STOP REASON max_sweeps" "${workdir}/stdout.txt"
 
-awk -F, 'NR == 1 { if ($1 < 5) exit 1; seen = 1 } END { exit seen ? 0 : 1 }' "${output_dir}/last.dat"
+awk -F, 'NR == 1 { if ($1 < 500) exit 1; seen = 1 } END { exit seen ? 0 : 1 }' "${output_dir}/last.dat"
 
 echo "heva open-shell max-sweeps run passed"

@@ -31,7 +31,7 @@ dgother=-0.950
 
 [simulation]
 muCd=-10.800
-ks0=0.020000
+ks0=0.000000
 dmu=-3.500
 dg=0.100
 
@@ -51,7 +51,7 @@ outputDir=${output_dir}
 profile=test
 EOF
 
-  "${binary_path}" --config "${config_path}" --max-sweeps 1 > "${workdir}/stdout.txt" 2> "${workdir}/stderr.txt"
+  "${binary_path}" --config "${config_path}" --max-sweeps 100 > "${workdir}/stdout.txt" 2> "${workdir}/stderr.txt"
 
   test -s "${output_dir}/last.dat"
   awk -F, -v expected_nv="${expected_nv}" 'NR == 1 { if ($30 != expected_nv) exit 1 }' "${output_dir}/last.dat"

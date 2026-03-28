@@ -94,7 +94,16 @@ For CG-ParamOpt usage and examples, see:
 
 - `workflows/cg_paramopt/README.md`
 
-That workflow uses HEVA's standard `init.mode = restart` and `runtime.resume = false` path after its workflow-specific preparation step.
+## Assembly Opt Workflow
+The HEVA-native assembly optimization workflow lives under:
+
+```text
+workflows/assembly_opt/
+```
+
+For usage and examples, see:
+
+- `workflows/assembly_opt/README.md`
 
 ## Validated Examples
 The following concrete commands were exercised during the init/resume cleanup pass.
@@ -137,7 +146,7 @@ Example:
 
 ```bash
 cd src
-./assemble --config ../checks/fixtures/smoke_config.in --max-sweeps 5
+./assemble --config ../checks/fixtures/smoke_config.in --max-sweeps 500
 ```
 
 ## Development Checks

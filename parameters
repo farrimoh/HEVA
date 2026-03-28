@@ -3,7 +3,7 @@ HEVA no longer uses the legacy positional CLI that used to be recorded in this f
 Use the sectioned config interface instead:
 
   cd src
-  ./assemble --config ../checks/fixtures/smoke_config.in --max-sweeps 5
+  ./assemble --config ../checks/fixtures/smoke_config.in --max-sweeps 500
 
 The maintained command-line contract is documented in `docs/running-heva.md`
 and the config format is documented in `docs/config-format.md`.

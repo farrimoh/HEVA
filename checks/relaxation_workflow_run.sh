@@ -43,7 +43,7 @@ restartPath=${restart_path}
 
 [runtime]
 seed=521759
-maxSweeps=25
+maxSweeps=250
 outputDir=${output_dir}
 workflow=relaxation
 
@@ -65,6 +65,6 @@ grep -q "MONOMER ADDED 0" "${workdir}/stdout.txt"
 grep -q "DIMER ADDED 0" "${workdir}/stdout.txt"
 grep -q "TYPE CHANGED 0" "${workdir}/stdout.txt"
 
-awk -F, 'NR == 1 { if ($1 < 25) exit 1; seen = 1 } END { exit seen ? 0 : 1 }' "${output_dir}/last.dat"
+awk -F, 'NR == 1 { if ($1 < 250) exit 1; seen = 1 } END { exit seen ? 0 : 1 }' "${output_dir}/last.dat"
 
 echo "heva relaxation workflow run passed"

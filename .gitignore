@@ -1,5 +1,8 @@
+.venv
 test*
 .local/
+__pycache__/
+*.pyc
 *.o
 *.d
 assemble

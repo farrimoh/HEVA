@@ -50,7 +50,7 @@ set +e
 "${binary_path}" \
   --config "${config_path}" \
   --index-capacity 10 \
-  --max-sweeps 25 \
+  --max-sweeps 250 \
   > "${workdir}/stdout.txt" 2> "${workdir}/stderr.txt"
 status=$?
 set -e

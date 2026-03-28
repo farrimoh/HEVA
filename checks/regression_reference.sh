@@ -50,7 +50,7 @@ profile=extended
 indexCapacity=1000000
 EOF
 
-"${binary_path}" --config "${config_path}" --max-sweeps 5 > "${workdir}/stdout.txt" 2> "${workdir}/stderr.txt"
+"${binary_path}" --config "${config_path}" --max-sweeps 500 > "${workdir}/stdout.txt" 2> "${workdir}/stderr.txt"
 
 test -s "${output_dir}/last.dat"
 

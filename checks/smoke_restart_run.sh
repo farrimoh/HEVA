@@ -53,7 +53,7 @@ EOF
 pushd /tmp >/dev/null
 "${binary_path}" \
   --config "${config_path}" \
-  --max-sweeps 5 \
+  --max-sweeps 500 \
   > "${workdir}/smoke.stdout" 2> "${workdir}/smoke.stderr"
 popd >/dev/null
 
