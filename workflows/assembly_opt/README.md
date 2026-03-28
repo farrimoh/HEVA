@@ -61,7 +61,6 @@ By default the workflow runs with:
 - `mudrug = 0`
 - `gdrug0 = 0`
 - `kd0 = 0`
-- `dmud = 0`
 
 These can be overridden from the CLI when needed.
 

@@ -32,7 +32,6 @@ class TrialSpec:
     mudrug: float
     gdrug0: float
     kd0: float
-    dmud: float
     core_enabled: bool
     core_max_bonds: int
     core_epsilon_lj: float
@@ -102,13 +101,11 @@ def materialize_trial(spec: TrialSpec) -> tuple[Path, list[str]]:
     config["drug"]["mudrug"] = format_float(spec.mudrug)
     config["drug"]["gdrug0"] = format_float(spec.gdrug0)
     config["drug"]["kd0"] = format_float(spec.kd0)
-    config["drug"]["dmud"] = format_float(spec.dmud)
 
     config["core"]["enabled"] = "true" if spec.core_enabled else "false"
     config["core"]["maxBonds"] = str(spec.core_max_bonds)
     config["core"]["epsilonLJ"] = format_float(spec.core_epsilon_lj)
     config["core"]["sigmaLJ"] = format_float(spec.core_sigma_lj)
-    config["core"].pop("dmud", None)
 
     config["init"]["mode"] = spec.init_mode
     if spec.init_mode == "restart":

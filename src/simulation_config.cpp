@@ -134,7 +134,6 @@ void set_default_config(SimulationConfig &config)
     config.core.maxBonds = 0UL;
     config.core.epsilonLJ = 0.0;
     config.core.sigmaLJ = 0.0;
-    config.drug.dmud = 0.0;
     config.runtime.maxSweeps = 0UL;
     config.runtime.outputDir = ".";
     config.runtime.workflow = "assembly";
@@ -541,7 +540,6 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
     bool mudrug_set = false;
     bool gdrug0_set = false;
     bool kd0_set = false;
-    bool dmud_set = false;
 
     bool core_epsilon_lj_set = false;
     bool core_sigma_lj_set = false;
@@ -580,7 +578,6 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
         {"mudrug", &config.drug.mudrug, &mudrug_set},
         {"gdrug0", &config.drug.gdrug0, &gdrug0_set},
         {"kd0", &config.drug.kd0, &kd0_set},
-        {"dmud", &config.drug.dmud, &dmud_set},
     };
 
     NumericFieldSpec core_fields[] = {
@@ -741,16 +738,6 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
                 if (!parse_unsigned_long_string(value, config.core.maxBonds))
                 {
                     error_message = "Invalid value for core.maxBonds.";
-                    return false;
-                }
-                continue;
-            }
-
-            if (key == "dmud")
-            {
-                if (!parse_double_string(value, config.drug.dmud))
-                {
-                    error_message = "Invalid value for core.dmud.";
                     return false;
                 }
                 continue;
@@ -952,8 +939,7 @@ std::string render_simulation_config(const SimulationConfig &config)
     output << "[drug]\n";
     output << "mudrug = " << config.drug.mudrug << "\n";
     output << "gdrug0 = " << config.drug.gdrug0 << "\n";
-    output << "kd0 = " << config.drug.kd0 << "\n";
-    output << "dmud = " << config.drug.dmud << "\n\n";
+    output << "kd0 = " << config.drug.kd0 << "\n\n";
 
     output << "[core]\n";
     output << "enabled = " << (config.core.enabled ? "true" : "false") << "\n";

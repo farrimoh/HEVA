@@ -50,7 +50,6 @@ void apply_simulation_config(const SimulationConfig &config, geometry &g)
 
     g.dg = config.simulation.dg;
     g.mudrug = config.drug.mudrug;
-    g.dmud = config.drug.dmud;
     g.core_enabled = config.core.enabled;
     g.maxbondsRNA = static_cast<int>(config.core.maxBonds);
     g.epsilon_lj = config.core.epsilonLJ;

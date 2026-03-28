@@ -408,7 +408,6 @@ void geometry::initialize(int Ntype0, unsigned long index_capacity)
 	maxbondsRNA=0;
 	epsilon_lj=0;
 	sigma_lj=0;
-	dmud=0;
 
 	gaussian_sigma=0;
 	l_thermal_sigma=0;

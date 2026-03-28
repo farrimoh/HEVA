@@ -118,7 +118,6 @@ def build_trial_spec(config: RuntimeConfig, parameters: dict[str, float], seed: 
         mudrug=config.mudrug,
         gdrug0=config.gdrug0,
         kd0=config.kd0,
-        dmud=config.dmud,
         core_enabled=config.core_enabled,
         core_max_bonds=config.core_max_bonds,
         core_epsilon_lj=config.core_epsilon_lj,

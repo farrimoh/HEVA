@@ -126,7 +126,6 @@ public:
 	int maxbondsRNA;
 	double epsilon_lj;
 	double sigma_lj;
-	double dmud;
 
 	double gaussian_sigma;
 	double l_thermal_sigma;

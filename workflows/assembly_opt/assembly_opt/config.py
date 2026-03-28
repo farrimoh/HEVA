@@ -103,7 +103,6 @@ class RuntimeConfig:
     mudrug: float
     gdrug0: float
     kd0: float
-    dmud: float
     core_enabled: bool
     core_max_bonds: int
     core_epsilon_lj: float
@@ -166,7 +165,6 @@ def build_config(
     mudrug: float = 0.0,
     gdrug0: float = 0.0,
     kd0: float = 0.0,
-    dmud: float = 0.0,
     core_enabled: bool = False,
     core_max_bonds: int = 1000,
     core_epsilon_lj: float = 0.0,
@@ -237,7 +235,6 @@ def build_config(
         mudrug=mudrug,
         gdrug0=gdrug0,
         kd0=kd0,
-        dmud=dmud,
         core_enabled=core_enabled,
         core_max_bonds=core_max_bonds,
         core_epsilon_lj=core_epsilon_lj,

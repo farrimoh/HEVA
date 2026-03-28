@@ -46,7 +46,6 @@ Drug-related parameters:
 - `mudrug`
 - `gdrug0`
 - `kd0`
-- `dmud` optional, defaults to `0`
 
 ### `[core]`
 Optional shell-plus-interior-core interaction controls. This section is parsed for every run, but the model stays inactive unless `enabled = true`.
@@ -156,7 +155,6 @@ dg = 0.100
 mudrug = 0.000
 gdrug0 = 0.000
 kd0 = 0.000000
-dmud = 0.000000
 
 [core]
 enabled = false

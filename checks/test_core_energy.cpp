@@ -40,7 +40,6 @@ SimulationConfig make_base_config()
     config.drug.mudrug = 0.0;
     config.drug.gdrug0 = 0.0;
     config.drug.kd0 = 0.0;
-    config.drug.dmud = 0.0;
 
     config.core.enabled = false;
     config.core.maxBonds = 1000UL;

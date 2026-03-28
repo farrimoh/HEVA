@@ -232,8 +232,7 @@ void write_parameter_report(std::ostream &output,
            << "core.enabled " << (persisted_config.core.enabled ? "true" : "false") << '\n'
            << "core.maxBonds " << persisted_config.core.maxBonds << '\n'
            << "core.epsilonLJ " << persisted_config.core.epsilonLJ << '\n'
-           << "core.sigmaLJ " << persisted_config.core.sigmaLJ << '\n'
-           << "drug.dmud " << persisted_config.drug.dmud << '\n';
+           << "core.sigmaLJ " << persisted_config.core.sigmaLJ << '\n';
 }
 }
 

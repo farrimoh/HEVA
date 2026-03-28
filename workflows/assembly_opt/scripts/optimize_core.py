@@ -49,7 +49,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--profile", choices=("test", "run", "extended"), default="run", help="HEVA engine profile.")
     parser.add_argument("--index-capacity", type=int, default=None, help="Required only for profile=extended.")
     parser.add_argument("--core-max-bonds", type=int, default=1000, help="Legacy maxbondsRNA control.")
-    parser.add_argument("--dmud", "--drug-dmud", "--core-dmud", dest="dmud", type=float, default=0.0, help="Drug dmud value (legacy --core-dmud alias accepted).")
     parser.add_argument("--epsilonlj-init", type=float, default=DEFAULT_CORE_INITIAL_PARAMS["epsilonLJ"])
     parser.add_argument("--sigmalj-init", type=float, default=DEFAULT_CORE_INITIAL_PARAMS["sigmaLJ"])
     parser.add_argument("--epsilonlj-min", type=float, default=DEFAULT_CORE_PARAM_BOUNDS["epsilonLJ"][0])
@@ -202,7 +201,6 @@ def build_trial_spec(config, args, seed: int, output_dir: Path, epsilon_lj: floa
         mudrug=config.mudrug,
         gdrug0=config.gdrug0,
         kd0=config.kd0,
-        dmud=config.dmud,
         core_enabled=True,
         core_max_bonds=config.core_max_bonds,
         core_epsilon_lj=epsilon_lj,
@@ -303,7 +301,6 @@ def main() -> int:
         mudrug=args.mudrug,
         gdrug0=args.gdrug0,
         kd0=args.kd0,
-        dmud=args.dmud,
         core_enabled=True,
         core_max_bonds=args.core_max_bonds,
         core_epsilon_lj=args.epsilonlj_init,
