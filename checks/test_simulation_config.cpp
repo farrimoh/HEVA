@@ -54,6 +54,13 @@ int main()
         "mudrug = -100.0\n"
         "gdrug0 = 10.0\n"
         "kd0 = 0.0\n"
+        "dmud = 2.5\n"
+        "\n"
+        "[core]\n"
+        "enabled = false\n"
+        "maxBonds = 0\n"
+        "epsilonLJ = 0.0\n"
+        "sigmaLJ = 0.0\n"
         "\n"
         "[init]\n"
         "mode = restart\n"
@@ -89,6 +96,11 @@ int main()
     assert(config.simulation.ks0 == 0.02);
     assert(config.drug.mudrug == -100.0);
     assert(config.drug.gdrug0 == 10.0);
+    assert(config.drug.dmud == 2.5);
+    assert(!config.core.enabled);
+    assert(config.core.maxBonds == 0UL);
+    assert(config.core.epsilonLJ == 0.0);
+    assert(config.core.sigmaLJ == 0.0);
 
     char override_opt1[] = "--max-sweeps";
     char override_val1[] = "25";
@@ -129,8 +141,60 @@ int main()
     assert(config.engine.indexCapacity == 2000000UL);
     const std::string rendered_override_config = render_simulation_config(config);
     assert(rendered_override_config.find("[capsid_geometry]") != std::string::npos);
+    assert(rendered_override_config.find("[core]") != std::string::npos);
+    assert(rendered_override_config.find("[drug]") != std::string::npos);
+    assert(rendered_override_config.find("dmud = 2.5") != std::string::npos);
+    assert(rendered_override_config.find("enabled = false") != std::string::npos);
     assert(rendered_override_config.find("profile = extended") != std::string::npos);
     assert(rendered_override_config.find("workflow = relaxation") != std::string::npos);
+
+    const std::string legacy_core_dmud_path = "simulation_config_legacy_core_dmud.in";
+    write_file(
+        legacy_core_dmud_path,
+        "[capsid_geometry]\n"
+        "epsilon0 = 4200\n"
+        "kappa0 = 40\n"
+        "kappaPhi0 = 800\n"
+        "theta0 = 0.240\n"
+        "theta1 = 0.480\n"
+        "gb0 = -9.8\n"
+        "dg12 = 0.3\n"
+        "dg01 = 0.1\n"
+        "dg20 = -0.1\n"
+        "dg33 = 0.0\n"
+        "dg00 = -0.6\n"
+        "dgother = -0.95\n"
+        "\n"
+        "[simulation]\n"
+        "muCd = -11.5\n"
+        "ks0 = 0.02\n"
+        "dmu = -4.5\n"
+        "dg = 0.0\n"
+        "\n"
+        "[drug]\n"
+        "mudrug = 0.0\n"
+        "gdrug0 = 0.0\n"
+        "kd0 = 0.0\n"
+        "\n"
+        "[core]\n"
+        "enabled = false\n"
+        "maxBonds = 0\n"
+        "epsilonLJ = 0.0\n"
+        "sigmaLJ = 0.0\n"
+        "dmud = 3.5\n"
+        "\n"
+        "[runtime]\n"
+        "seed = 7\n"
+        "\n"
+        "[engine]\n"
+        "profile = run\n");
+
+    char legacy_core_dmud_cfg[] = "simulation_config_legacy_core_dmud.in";
+    char *legacy_core_dmud_argv[] = {arg0, cfg_opt, legacy_core_dmud_cfg};
+    parsed = parse_simulation_config(3, legacy_core_dmud_argv, config, error_message);
+    assert(parsed);
+    assert(error_message.empty());
+    assert(config.drug.dmud == 3.5);
 
     char fixture_path[] = "fixtures/smoke_config.in";
     char cfg_override_opt[] = "--max-sweeps";
@@ -187,6 +251,13 @@ int main()
         "mudrug = 0.0\n"
         "gdrug0 = 0.0\n"
         "kd0 = 0.0\n"
+        "dmud = 0.0\n"
+        "\n"
+        "[core]\n"
+        "enabled = false\n"
+        "maxBonds = 0\n"
+        "epsilonLJ = 0.0\n"
+        "sigmaLJ = 0.0\n"
         "\n"
         "[runtime]\n"
         "seed = 7\n"
@@ -228,6 +299,12 @@ int main()
         "gdrug0 = 0.0\n"
         "kd0 = 0.0\n"
         "\n"
+        "[core]\n"
+        "enabled = false\n"
+        "maxBonds = 0\n"
+        "epsilonLJ = 0.0\n"
+        "sigmaLJ = 0.0\n"
+        "\n"
         "[runtime]\n"
         "seed = 7\n"
         "workflow = relaxation\n"
@@ -241,6 +318,103 @@ int main()
     assert(!parsed);
     assert(error_message.find("Relaxation workflow requires") != std::string::npos);
 
+    const std::string good_core_path = "simulation_config_core_good.in";
+    write_file(
+        good_core_path,
+        "[capsid_geometry]\n"
+        "epsilon0 = 4200\n"
+        "kappa0 = 40\n"
+        "kappaPhi0 = 800\n"
+        "theta0 = 0.240\n"
+        "theta1 = 0.480\n"
+        "gb0 = -9.8\n"
+        "dg12 = 0.3\n"
+        "dg01 = 0.1\n"
+        "dg20 = -0.1\n"
+        "dg33 = 0.0\n"
+        "dg00 = -0.6\n"
+        "dgother = -0.95\n"
+        "\n"
+        "[simulation]\n"
+        "muCd = -11.5\n"
+        "ks0 = 0.02\n"
+        "dmu = -4.5\n"
+        "dg = 0.0\n"
+        "\n"
+        "[drug]\n"
+        "mudrug = 0.0\n"
+        "gdrug0 = 0.0\n"
+        "kd0 = 0.0\n"
+        "\n"
+        "[core]\n"
+        "enabled = true\n"
+        "maxBonds = 1000\n"
+        "epsilonLJ = 1.75\n"
+        "sigmaLJ = 0.85\n"
+        "dmud = 0.25\n"
+        "\n"
+        "[runtime]\n"
+        "seed = 7\n"
+        "\n"
+        "[engine]\n"
+        "profile = run\n");
+
+    char good_core_cfg[] = "simulation_config_core_good.in";
+    char *good_core_argv[] = {arg0, cfg_opt, good_core_cfg};
+    parsed = parse_simulation_config(3, good_core_argv, config, error_message);
+    assert(parsed);
+    assert(config.core.enabled);
+    assert(config.core.maxBonds == 1000UL);
+    assert(config.core.epsilonLJ == 1.75);
+    assert(config.core.sigmaLJ == 0.85);
+    assert(config.drug.dmud == 0.25);
+
+    const std::string bad_core_path = "simulation_config_core_bad.in";
+    write_file(
+        bad_core_path,
+        "[capsid_geometry]\n"
+        "epsilon0 = 4200\n"
+        "kappa0 = 40\n"
+        "kappaPhi0 = 800\n"
+        "theta0 = 0.240\n"
+        "theta1 = 0.480\n"
+        "gb0 = -9.8\n"
+        "dg12 = 0.3\n"
+        "dg01 = 0.1\n"
+        "dg20 = -0.1\n"
+        "dg33 = 0.0\n"
+        "dg00 = -0.6\n"
+        "dgother = -0.95\n"
+        "\n"
+        "[simulation]\n"
+        "muCd = -11.5\n"
+        "ks0 = 0.02\n"
+        "dmu = -4.5\n"
+        "dg = 0.0\n"
+        "\n"
+        "[drug]\n"
+        "mudrug = 0.0\n"
+        "gdrug0 = 0.0\n"
+        "kd0 = 0.0\n"
+        "\n"
+        "[core]\n"
+        "enabled = true\n"
+        "maxBonds = 0\n"
+        "epsilonLJ = 1.75\n"
+        "sigmaLJ = 0.85\n"
+        "\n"
+        "[runtime]\n"
+        "seed = 7\n"
+        "\n"
+        "[engine]\n"
+        "profile = run\n");
+
+    char bad_core_cfg[] = "simulation_config_core_bad.in";
+    char *bad_core_argv[] = {arg0, cfg_opt, bad_core_cfg};
+    parsed = parse_simulation_config(3, bad_core_argv, config, error_message);
+    assert(!parsed);
+    assert(error_message.find("core.maxBonds") != std::string::npos);
+
     assert(assemble_usage().find("--config PATH") != std::string::npos);
     assert(assemble_usage().find("--workflow MODE") != std::string::npos);
     assert(assemble_usage().find("[capsid_geometry]") != std::string::npos);
@@ -253,6 +427,8 @@ int main()
     std::remove(bad_config_path.c_str());
     std::remove(bad_extended_path.c_str());
     std::remove(bad_relaxation_path.c_str());
+    std::remove(good_core_path.c_str());
+    std::remove(bad_core_path.c_str());
 
     std::cout << "simulation_config checks passed" << std::endl;
     return 0;

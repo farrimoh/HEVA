@@ -1,0 +1,37 @@
+[capsid_geometry]
+epsilon0 = 4200
+kappa0 = 40
+kappaPhi0 = 800
+theta0 = 0.240
+theta1 = 0.480
+gb0 = -9.8
+dg12 = 0.3
+dg01 = 0.1
+dg20 = -0.1
+dg33 = 0.0
+dg00 = -0.6
+dgother = -0.95
+
+[simulation]
+muCd = -11.5
+ks0 = 0.02
+dmu = -4.5
+dg = 0.0
+
+[drug]
+mudrug = 0.0
+gdrug0 = 0.0
+kd0 = 0.0
+
+[core]
+enabled = false
+maxBonds = 0
+epsilonLJ = 0.0
+sigmaLJ = 0.0
+dmud = 3.5
+
+[runtime]
+seed = 7
+
+[engine]
+profile = run

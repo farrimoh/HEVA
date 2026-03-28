@@ -40,6 +40,21 @@ DEFAULT_PARAM_BOUNDS = {
     "dgother": (-1.0, 0.0),
 }
 
+CORE_PARAMETER_ORDER = [
+    "epsilonLJ",
+    "sigmaLJ",
+]
+
+DEFAULT_CORE_INITIAL_PARAMS = {
+    "epsilonLJ": 0.05,
+    "sigmaLJ": 0.30,
+}
+
+DEFAULT_CORE_PARAM_BOUNDS = {
+    "epsilonLJ": (0.01, 0.50),
+    "sigmaLJ": (0.20, 0.80),
+}
+
 
 @dataclass(frozen=True)
 class SlurmAccountPair:
@@ -88,6 +103,11 @@ class RuntimeConfig:
     mudrug: float
     gdrug0: float
     kd0: float
+    dmud: float
+    core_enabled: bool
+    core_max_bonds: int
+    core_epsilon_lj: float
+    core_sigma_lj: float
     target_yield: float
     target_ratio: float
     yield_weight: float
@@ -146,6 +166,11 @@ def build_config(
     mudrug: float = 0.0,
     gdrug0: float = 0.0,
     kd0: float = 0.0,
+    dmud: float = 0.0,
+    core_enabled: bool = False,
+    core_max_bonds: int = 1000,
+    core_epsilon_lj: float = 0.0,
+    core_sigma_lj: float = 0.0,
     target_yield: float = 1.0,
     target_ratio: float = 0.9,
     yield_weight: float = 100.0,
@@ -212,6 +237,11 @@ def build_config(
         mudrug=mudrug,
         gdrug0=gdrug0,
         kd0=kd0,
+        dmud=dmud,
+        core_enabled=core_enabled,
+        core_max_bonds=core_max_bonds,
+        core_epsilon_lj=core_epsilon_lj,
+        core_sigma_lj=core_sigma_lj,
         target_yield=target_yield,
         target_ratio=target_ratio,
         yield_weight=yield_weight,

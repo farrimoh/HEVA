@@ -40,6 +40,15 @@ struct DrugParameterConfig
     double mudrug;
     double gdrug0;
     double kd0;
+    double dmud;
+};
+
+struct CoreParameterConfig
+{
+    bool enabled;
+    unsigned long maxBonds;
+    double epsilonLJ;
+    double sigmaLJ;
 };
 
 struct InitializationConfig
@@ -76,6 +85,7 @@ struct SimulationConfig
     CapsidGeometryConfig capsidGeometry;
     SimulationParameterConfig simulation;
     DrugParameterConfig drug;
+    CoreParameterConfig core;
     InitializationConfig initialization;
     RuntimeConfig runtime;
     EngineConfig engine;

@@ -130,6 +130,11 @@ void set_default_config(SimulationConfig &config)
 {
     config.engine.indexCapacity = 0UL;
     config.engine.runMode.clear();
+    config.core.enabled = false;
+    config.core.maxBonds = 0UL;
+    config.core.epsilonLJ = 0.0;
+    config.core.sigmaLJ = 0.0;
+    config.drug.dmud = 0.0;
     config.runtime.maxSweeps = 0UL;
     config.runtime.outputDir = ".";
     config.runtime.workflow = "assembly";
@@ -256,6 +261,34 @@ bool finalize_cg_paramopt_config(SimulationConfig &config, std::string &error_me
     if (config.cgParamOpt.sampleOutputPath.empty())
     {
         config.cgParamOpt.sampleOutputPath = "data.dat";
+    }
+
+    return true;
+}
+
+bool finalize_core_config(SimulationConfig &config, std::string &error_message)
+{
+    if (!config.core.enabled)
+    {
+        return true;
+    }
+
+    if (config.core.maxBonds == 0UL)
+    {
+        error_message = "Core-enabled runs require core.maxBonds to be greater than zero.\n" + assemble_usage();
+        return false;
+    }
+
+    if (config.core.epsilonLJ == 0.0)
+    {
+        error_message = "Core-enabled runs require core.epsilonLJ to be non-zero.\n" + assemble_usage();
+        return false;
+    }
+
+    if (config.core.sigmaLJ <= 0.0)
+    {
+        error_message = "Core-enabled runs require core.sigmaLJ to be greater than zero.\n" + assemble_usage();
+        return false;
     }
 
     return true;
@@ -508,6 +541,10 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
     bool mudrug_set = false;
     bool gdrug0_set = false;
     bool kd0_set = false;
+    bool dmud_set = false;
+
+    bool core_epsilon_lj_set = false;
+    bool core_sigma_lj_set = false;
 
     NumericFieldSpec capsid_fields[] = {
         {"epsilon0", &config.capsidGeometry.epsilon0, &epsilon0_set},
@@ -543,6 +580,12 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
         {"mudrug", &config.drug.mudrug, &mudrug_set},
         {"gdrug0", &config.drug.gdrug0, &gdrug0_set},
         {"kd0", &config.drug.kd0, &kd0_set},
+        {"dmud", &config.drug.dmud, &dmud_set},
+    };
+
+    NumericFieldSpec core_fields[] = {
+        {"epsilonLJ", &config.core.epsilonLJ, &core_epsilon_lj_set},
+        {"sigmaLJ", &config.core.sigmaLJ, &core_sigma_lj_set},
     };
 
     const std::string config_dir = parent_directory(config_path);
@@ -574,6 +617,7 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
             if (current_section != "capsid_geometry" &&
                 current_section != "simulation" &&
                 current_section != "drug" &&
+                current_section != "core" &&
                 current_section != "init" &&
                 current_section != "runtime" &&
                 current_section != "engine" &&
@@ -678,6 +722,46 @@ bool load_simulation_config_file(const std::string &config_path, SimulationConfi
 
             error_message = std::string("Unknown config key in [init]: ") + key;
             return false;
+        }
+
+        if (current_section == "core")
+        {
+            if (key == "enabled")
+            {
+                if (!parse_bool_string(value, config.core.enabled))
+                {
+                    error_message = "Invalid value for core.enabled.";
+                    return false;
+                }
+                continue;
+            }
+
+            if (key == "maxBonds")
+            {
+                if (!parse_unsigned_long_string(value, config.core.maxBonds))
+                {
+                    error_message = "Invalid value for core.maxBonds.";
+                    return false;
+                }
+                continue;
+            }
+
+            if (key == "dmud")
+            {
+                if (!parse_double_string(value, config.drug.dmud))
+                {
+                    error_message = "Invalid value for core.dmud.";
+                    return false;
+                }
+                continue;
+            }
+
+            if (!handle_section_numeric_field(current_section, key, value, core_fields, sizeof(core_fields) / sizeof(core_fields[0]), error_message))
+            {
+                error_message = std::string("Unknown config key in [core]: ") + key;
+                return false;
+            }
+            continue;
         }
 
         if (current_section == "cg_paramopt")
@@ -822,7 +906,7 @@ std::string assemble_usage()
     std::ostringstream usage;
     usage << "usage: ./assemble --config PATH "
           << "[--run-mode MODE] [--index-capacity N] [--max-sweeps N] [--workflow MODE] [--init MODE] [--seed-config NAME] [--init-path PATH] [--resume true|false] [--output-dir PATH]\n"
-          << "config sections: [capsid_geometry], [simulation], [drug], [init], [runtime], [engine], [cg_paramopt]\n"
+          << "config sections: [capsid_geometry], [simulation], [drug], [core], [init], [runtime], [engine], [cg_paramopt]\n"
           << "init modes: restart, seed\n"
           << "runtime workflows: assembly (default), relaxation (move_vertex only)\n"
           << "engine profiles: test=" << kTestIndexCapacity
@@ -868,7 +952,14 @@ std::string render_simulation_config(const SimulationConfig &config)
     output << "[drug]\n";
     output << "mudrug = " << config.drug.mudrug << "\n";
     output << "gdrug0 = " << config.drug.gdrug0 << "\n";
-    output << "kd0 = " << config.drug.kd0 << "\n\n";
+    output << "kd0 = " << config.drug.kd0 << "\n";
+    output << "dmud = " << config.drug.dmud << "\n\n";
+
+    output << "[core]\n";
+    output << "enabled = " << (config.core.enabled ? "true" : "false") << "\n";
+    output << "maxBonds = " << config.core.maxBonds << "\n";
+    output << "epsilonLJ = " << config.core.epsilonLJ << "\n";
+    output << "sigmaLJ = " << config.core.sigmaLJ << "\n\n";
 
     output << "[init]\n";
     output << "mode = " << config.initialization.mode << "\n";
@@ -946,6 +1037,11 @@ bool parse_simulation_config(int argc, char **argv, SimulationConfig &config, st
     }
 
     if (!finalize_cg_paramopt_config(config, error_message))
+    {
+        return false;
+    }
+
+    if (!finalize_core_config(config, error_message))
     {
         return false;
     }

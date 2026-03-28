@@ -459,6 +459,7 @@ int attempt_add_monomer_dimer(geometry &g, int heid0, gsl_rng *r) //!!! Should u
 
                 de += g.dimer_bend_energy(g.heidtoindex[g.Nhelast - 2]) + g.dimer_bend_energy(xidindex);
                 de += g.bend_energy(heindex0) + g.bend_energy(xidindex)-e1; // g.dimer_bend_energy(heindex0);
+                de += g.RNA_bind_energy(g.heidtoindex[g.Nhelast - 1]);
                 //de+=  ; //g.monomer_energy(heid0);
                 //std::cout << " de is " << de <<endl;
                 //double e2=g.compute_energy();
@@ -692,6 +693,7 @@ int attempt_add_monomer_dimer(geometry &g, int heid0, gsl_rng *r) //!!! Should u
                 double de = g.stretch_energy(g.heidtoindex[g.Nhelast - 2]);
                 de += g.dimer_bend_energy(g.heidtoindex[g.Nhelast - 2]) + g.dimer_bend_energy(heindex0);
                 de += g.bend_energy(heindex0) + g.bend_energy(xidindex)-e1;
+                de += g.RNA_bind_energy(g.heidtoindex[g.Nhelast - 1]);
 
                 //std::cout << " crit is " << crit << endl;
                 de += gbb - g.mu[etypenew];
@@ -948,6 +950,8 @@ int attempt_add_monomer_dimer(geometry &g, int heid0, gsl_rng *r) //!!! Should u
         double de = g.stretch_energy(index2) + g.dimer_bend_energy(index2);
         de += g.stretch_energy(index4) + g.dimer_bend_energy(index4);
         de += g.bend_energy(heindex0) + g.dimer_bend_energy(heindex0);
+        de += g.RNA_bind_energy(index2);
+        de += g.RNA_bind_energy(index4);
 
         /* test !!!!
             if (abs(de-(g.compute_energy()-e11)>0.0000000001))  
@@ -1166,6 +1170,7 @@ int attempt_remove_monomer_dimer(geometry &g, int heid0, gsl_rng *r) /* 102220 T
         gbb += g.find_dg(optype, opnexttype, g.he[nextopindex0].din);
 
         de -= (gbb - g.mu[g.he[heindex0].type]);
+        de -= g.RNA_bind_energy(heindex0);
         double crit = 2 * exp(-de / g.T); ///(2.0*g.z*g.K*g.K*g.K);
 
         if (g.Test_assembly == 1)
@@ -1286,6 +1291,7 @@ int attempt_remove_monomer_dimer(geometry &g, int heid0, gsl_rng *r) /* 102220 T
                 std::cout << "g.compute_energy() -e11 "<< g.compute_energy()-e11 <<endl; std::exit(-1);} */
 
             de -= (gbb - (g.mu[g.he[heindex0].type] + g.mu[g.he[heindex_prev_boundary].type]));
+            de -= g.RNA_bind_energy(heindex0) + g.RNA_bind_energy(heindex_prev_boundary);
             //
             //**************************
             // gaussian correction
@@ -1403,6 +1409,7 @@ int attempt_remove_monomer_dimer(geometry &g, int heid0, gsl_rng *r) /* 102220 T
             de -= (g.dimer_bend_energy(g.heidtoindex[nextopid0]) + g.dimer_bend_energy(g.heidtoindex[prevopid0]));
 
             de -= (gbb - (g.mu[g.he[heindex0].type] + g.mu[g.he[heindex_next_boundary].type]));
+            de -= g.RNA_bind_energy(heindex0) + g.RNA_bind_energy(heindex_next_boundary);
 
             //**************************
             // gaussian correction
@@ -4362,6 +4369,7 @@ int force_add_monomer_with_next(geometry &g, int heid0, int xid, gsl_rng *r)
 
                 de += g.dimer_bend_energy(g.heidtoindex[g.Nhelast - 2]) + g.dimer_bend_energy(xidindex);
                 de += g.bend_energy(heindex0) + g.bend_energy(xidindex); //-e1; // g.dimer_bend_energy(heindex0);
+                de += g.RNA_bind_energy(g.heidtoindex[g.Nhelast - 1]);
                 //de+=  ; //g.monomer_energy(heid0);
                 //std::cout << " de is " << de <<endl;
                 //double e2=g.compute_energy();

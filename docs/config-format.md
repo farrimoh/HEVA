@@ -46,6 +46,21 @@ Drug-related parameters:
 - `mudrug`
 - `gdrug0`
 - `kd0`
+- `dmud` optional, defaults to `0`
+
+### `[core]`
+Optional shell-plus-interior-core interaction controls. This section is parsed for every run, but the model stays inactive unless `enabled = true`.
+
+- `enabled`
+- `maxBonds`
+- `epsilonLJ`
+- `sigmaLJ`
+
+When `enabled = true`:
+
+- `maxBonds` must be greater than `0`
+- `epsilonLJ` must be non-zero
+- `sigmaLJ` must be greater than `0`
 
 ### `[init]`
 Initialization behavior:
@@ -141,6 +156,13 @@ dg = 0.100
 mudrug = 0.000
 gdrug0 = 0.000
 kd0 = 0.000000
+dmud = 0.000000
+
+[core]
+enabled = false
+maxBonds = 0
+epsilonLJ = 0.000000
+sigmaLJ = 0.000000
 
 [init]
 mode = restart

@@ -13,10 +13,11 @@ SOURCES := test_simulation_config.cpp ../src/simulation_config.cpp
 OBJECTS := $(SOURCES:.cpp=.o)
 DEPS := $(OBJECTS:.o=.d)
 INVARIANT_TARGET := test_geometry_invariants
+CORE_TARGET := test_core_energy
 
 all: $(TARGET)
 
-.PHONY: smoke_run regression_run invariants_run capacity_policy_run open_shell_run relaxation_run seed_init_run test_all
+.PHONY: smoke_run regression_run invariants_run capacity_policy_run open_shell_run relaxation_run seed_init_run core_run test_all
 
 $(TARGET): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $@
@@ -27,12 +28,18 @@ $(TARGET): $(OBJECTS)
 $(INVARIANT_TARGET): test_geometry_invariants.cpp geometry_invariants.cpp ../src/tri_tri_intersect.cpp ../src/geometry.cpp ../src/montecarlo.cpp ../src/simulation_config.cpp ../src/simulation_setup.cpp
 	$(CXX) $(CPPFLAGS) $(GSL_CFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
 
+$(CORE_TARGET): test_core_energy.cpp ../src/tri_tri_intersect.cpp ../src/geometry.cpp ../src/montecarlo.cpp ../src/simulation_config.cpp ../src/simulation_setup.cpp
+	$(CXX) $(CPPFLAGS) $(GSL_CFLAGS) $(CXXFLAGS) $^ $(LDFLAGS) $(LDLIBS) -o $@
+
 smoke_run:
 	$(MAKE) -C ../src
 	bash ./smoke_restart_run.sh ../src/assemble ./fixtures/restart_lammps.dat
 
 invariants_run: $(INVARIANT_TARGET)
 	./$(INVARIANT_TARGET)
+
+core_run: $(CORE_TARGET)
+	./$(CORE_TARGET)
 
 regression_run:
 	$(MAKE) -C ../src
@@ -54,9 +61,10 @@ seed_init_run:
 	$(MAKE) -C ../src
 	bash ./seed_init_modes.sh ../src/assemble
 
-test_all: $(TARGET) $(INVARIANT_TARGET)
+test_all: $(TARGET) $(INVARIANT_TARGET) $(CORE_TARGET)
 	./$(TARGET)
 	./$(INVARIANT_TARGET)
+	./$(CORE_TARGET)
 	$(MAKE) capacity_policy_run
 	$(MAKE) open_shell_run
 	$(MAKE) relaxation_run
@@ -65,6 +73,6 @@ test_all: $(TARGET) $(INVARIANT_TARGET)
 	$(MAKE) regression_run
 
 clean:
-	rm -f $(OBJECTS) $(DEPS) $(TARGET) $(INVARIANT_TARGET)
+	rm -f $(OBJECTS) $(DEPS) $(TARGET) $(INVARIANT_TARGET) $(CORE_TARGET)
 
 -include $(DEPS)

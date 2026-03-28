@@ -50,6 +50,11 @@ void apply_simulation_config(const SimulationConfig &config, geometry &g)
 
     g.dg = config.simulation.dg;
     g.mudrug = config.drug.mudrug;
+    g.dmud = config.drug.dmud;
+    g.core_enabled = config.core.enabled;
+    g.maxbondsRNA = static_cast<int>(config.core.maxBonds);
+    g.epsilon_lj = config.core.epsilonLJ;
+    g.sigma_lj = config.core.sigmaLJ;
 
     double alp = 1;
     g.l_thermal_kappa = std::sqrt((3.0 * g.l0[0] * g.l0[0] * alp * g.T / (2.0 * g.kappa[0])));

@@ -122,6 +122,11 @@ public:
 	double mudimer;
 	double *mu;
 	double mudrug;
+	bool core_enabled;
+	int maxbondsRNA;
+	double epsilon_lj;
+	double sigma_lj;
+	double dmud;
 
 	double gaussian_sigma;
 	double l_thermal_sigma;
@@ -321,6 +326,8 @@ public:
 
 	double monomer_energy(int heid0);
 
+	double RNA_bind_energy(int heindex0);
+
 	double compute_bind_energy();
 
 	double compute_energy();
@@ -365,6 +372,12 @@ double dot(double *v1, double *v2);
 void cross(double *v1, double *v2, double *res);
 
 void randvec(double *v, gsl_rng *r);
+
+double LJ(double r, double epsilon, double sigma);
+
+double WLJ(double r, double epsilon, double sigma);
+
+double MORSE(double r, double epsilon, double r0);
 
 void dump_lammps_traj(geometry &g, int time0);
 

@@ -58,6 +58,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--mudrug", type=float, default=0.0)
     parser.add_argument("--gdrug0", type=float, default=0.0)
     parser.add_argument("--kd0", type=float, default=0.0)
+    parser.add_argument("--dmud", "--drug-dmud", "--core-dmud", dest="dmud", type=float, default=0.0, help="Drug dmud value (legacy --core-dmud alias accepted).")
+    parser.add_argument("--core-enabled", action="store_true", help="Enable the core interaction model for each trial.")
+    parser.add_argument("--core-max-bonds", type=int, default=1000, help="Legacy maxbondsRNA control when --core-enabled.")
+    parser.add_argument("--core-epsilonlj", type=float, default=0.0, help="Core epsilonLJ value.")
+    parser.add_argument("--core-sigmalj", type=float, default=0.0, help="Core sigmaLJ value.")
     parser.add_argument("--target-yield", type=float, default=1.0)
     parser.add_argument("--target-ratio", type=float, default=0.9)
     parser.add_argument("--yield-weight", type=float, default=100.0)
@@ -118,6 +123,11 @@ def main() -> int:
         mudrug=args.mudrug,
         gdrug0=args.gdrug0,
         kd0=args.kd0,
+        dmud=args.dmud,
+        core_enabled=args.core_enabled,
+        core_max_bonds=args.core_max_bonds,
+        core_epsilon_lj=args.core_epsilonlj,
+        core_sigma_lj=args.core_sigmalj,
         target_yield=args.target_yield,
         target_ratio=args.target_ratio,
         yield_weight=args.yield_weight,
