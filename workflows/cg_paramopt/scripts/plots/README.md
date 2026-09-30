@@ -34,9 +34,14 @@ Use `--relaxed-faces` for the CD-only flat diamond, which is not a T4 arrangemen
 writes `<name>_observables.csv` and `<name>_summary.json`. The CSV is long format, one row per
 contact per frame:
 `frame, source_frame, observable, contact_id, half_edge_type, observable_class, energy_class,
-value, contact_label, signed_value, weak_junctions`. Lengths are in Å and angles in radians.
-`signed_value` carries the dihedral sign. `weak_junctions` counts the two-protein junctions a
-contact touches; contacts with 0 are measured without any capsid-derived correction.
+value, contact_label, signed_value, weak_junctions, end_tags`. Lengths are in Å and angles in
+radians. `signed_value` carries the dihedral sign. `weak_junctions` counts the two-protein
+junctions a contact touches; contacts with 0 are measured without any capsid-derived
+correction. `end_tags` gives the occupancy of the junctions involved, for example `P3/5-H3/6`
+for a dimer from a pentamer with 3 of 5 proteins present to a hexamer with 3 of 6.
+
+`<name>_summary.json` records the mapping itself: which proteins form each CG junction, ring
+size and occupancy, the oriented faces, the boundary half-edges, and the extraction settings.
 
 ## 2. Plot distributions
 
