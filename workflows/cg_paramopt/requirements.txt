@@ -4,3 +4,4 @@ pandas
 matplotlib
 scipy
 hyperopt
+MDAnalysis>=2.8,<3
